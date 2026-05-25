@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 50%, #f0f4ff 100%);
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(13,43,107,0.2); border-radius: 20px; }
+
+.glass-card {
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow: 0 8px 32px rgba(31,38,135,0.06);
+}
+
+.glass-input {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 16px;
+  padding: 12px 16px;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: rgba(33,150,243,0.5);
+  box-shadow: 0 0 0 4px rgba(33,150,243,0.1);
+}
+
+.glass-button-primary {
+  background: linear-gradient(135deg, #1565c0, #0d2b6b);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #0d2b6b, #1565c0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-bg {
+  background: linear-gradient(-45deg, #f0f4ff, #e3f2fd, #bbdefb, #f0f4ff);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.leaflet-container { border-radius: 20px; overflow: hidden; }
