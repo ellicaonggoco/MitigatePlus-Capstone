@@ -41,10 +41,23 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
+const evacuationBuildingSvg = `
+  <svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+    <path d="M4 21h16" />
+    <path d="M6 21V7l6-4 6 4v14" />
+    <path d="M9 21v-6h6v6" />
+    <path d="M9 10h.01" />
+    <path d="M12 10h.01" />
+    <path d="M15 10h.01" />
+    <path d="M9 13h.01" />
+    <path d="M15 13h.01" />
+  </svg>
+`;
+
 // Evacuation centre icon
 const evacuationIcon = new L.DivIcon({
   className: "custom-marker",
-  html: `<div style="background:linear-gradient(135deg,#10b981,#059669);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(16,185,129,0.5);border:3px solid white;">EC</div>`,
+  html: `<div style="background:linear-gradient(135deg,#10b981,#059669);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(16,185,129,0.5);border:3px solid white;">${evacuationBuildingSvg}</div>`,
   iconSize: [40, 40],
   iconAnchor: [20, 20],
 });
@@ -1484,7 +1497,12 @@ const HazardManagement = () => {
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500"></span>Moderate</span>
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-700"></span>Low</span>
                   <span className="flex items-center gap-1"><span className="w-5 h-0.5 bg-red-600"></span>Fault</span>
-                  <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center text-white text-[9px] font-bold">EC</span>Evacuation</span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center text-white">
+                      <BuildingOffice2Icon className="w-3 h-3" />
+                    </span>
+                    Evacuation
+                  </span>
                 </div>
               </div>
             </motion.div>

@@ -83,6 +83,8 @@ const webHazardLogos = {
     '<path d="M4 7h16"/><path d="M6 7v11h12V7"/><path d="M9 11h6"/><path d="M9 15h6"/>',
   "Structural Damage":
     '<path d="M4 20h16"/><path d="M6 20V8l6-4 6 4v12"/><path d="m10 8 2 4-2 2 2 3"/><path d="M14 8h2"/>',
+  Evacuation:
+    '<path d="M4 21h16"/><path d="M6 21V7l6-4 6 4v14"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01"/><path d="M12 10h.01"/><path d="M15 10h.01"/><path d="M9 13h.01"/><path d="M15 13h.01"/>',
 };
 
 const safeJson = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
@@ -188,7 +190,12 @@ const buildMapHtml = ({ hazards, reports, evacuation }) => {
       "Structural Damage": "linear-gradient(145deg,#e2e8f0 0%,#64748b 48%,#334155 100%)",
       Evacuation: "linear-gradient(145deg,#a7f3d0 0%,#10b981 48%,#047857 100%)",
     })};
-    const iconSvg = (type) => '<div class="hazard-emoji">' + (data.hazardEmojis[type] || '⚠️') + '</div>';
+    const iconSvg = (type) => {
+      if (type === 'Evacuation') {
+        return '<div style="width:42px;height:42px;border-radius:15px;border:3px solid #fff;background:' + markerGradients.Evacuation + ';display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(13,43,107,.32);"><svg viewBox="0 0 24 24" style="width:25px;height:25px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">' + data.webHazardLogos.Evacuation + '</svg></div>';
+      }
+      return '<div class="hazard-emoji">' + (data.hazardEmojis[type] || '⚠️') + '</div>';
+    };
     const post = (item) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(item));
     const popup = (item) => {
       const tips = (item.tips || []).slice(0, 3).map(t => '<li>' + t + '</li>').join('');

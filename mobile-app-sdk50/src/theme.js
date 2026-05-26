@@ -78,6 +78,7 @@ export const hazardIcons = {
   Typhoon: "thunderstorm-outline",
   "Drainage Issue": "git-compare-outline",
   "Structural Damage": "business-outline",
+  Evacuation: "business-outline",
 };
 
 export const hazardEmojis = {
@@ -88,6 +89,7 @@ export const hazardEmojis = {
   Typhoon: "🌪️",
   "Drainage Issue": "🚧",
   "Structural Damage": "🏚️",
+  Evacuation: "🏢",
 };
 
 export const hazardTypes = [
