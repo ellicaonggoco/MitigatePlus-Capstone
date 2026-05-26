@@ -17,11 +17,11 @@ const WelcomeScreen = ({ navigation }) => {
   const compact = height < 740;
   const narrow = width < 370;
   const logoPanelHeight = Math.min(
-    Math.max(height * (compact ? 0.36 : 0.4), 270),
-    compact ? 315 : 360,
+    Math.max(height * (compact ? 0.4 : 0.43), 315),
+    compact ? 350 : 390,
   );
-  const logoSize = Math.min(width * 0.62, compact ? 220 : 250);
-  const heroHeight = Math.min(width * 0.58, compact ? 205 : 235);
+  const logoSize = Math.min(width * 0.72, compact ? 245 : 275);
+  const heroHeight = Math.min(width * 0.74, compact ? 265 : 300);
   const titleSize = Math.min(width * (narrow ? 0.13 : 0.145), compact ? 46 : 54);
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(22)).current;
@@ -69,13 +69,13 @@ const WelcomeScreen = ({ navigation }) => {
             />
             <Image
               source={require("../assets/images/welcomepagelogo.png")}
-              resizeMode="contain"
+              resizeMode="cover"
               style={[
                 styles.hero,
                 {
-                  width: width * 1.08,
+                  width: width * 1.24,
                   height: heroHeight,
-                  marginTop: compact ? 4 : 10,
+                  marginTop: compact ? -6 : -2,
                 },
               ]}
             />
@@ -157,11 +157,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 38,
     alignItems: "center",
     paddingHorizontal: 26,
-    paddingTop: 34,
+    paddingTop: 28,
     paddingBottom: 34,
     justifyContent: "space-between",
   },
-  bluePanelCompact: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 },
+  bluePanelCompact: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 24 },
   title: {
     color: "#fff",
     textShadowColor: "rgba(2,2,2,0.32)",
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
     fontSize: 14,
     fontFamily: fonts.bold,
-    marginTop: 14,
+    marginTop: 12,
     textAlign: "center",
   },
   taglineCompact: { fontSize: 13, marginTop: 10 },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     lineHeight: 22,
     textAlign: "center",
-    marginTop: 24,
+    marginTop: 20,
   },
   bodyCompact: { fontSize: 13, lineHeight: 19, marginTop: 16 },
   micro: {
@@ -198,8 +198,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     textAlign: "center",
     lineHeight: 18,
-    marginTop: 26,
-    marginBottom: 22,
+    marginTop: 22,
+    marginBottom: 20,
   },
   microCompact: { fontSize: 11, lineHeight: 16, marginTop: 18, marginBottom: 16 },
   actionRow: { flexDirection: "row", gap: 14, width: "100%" },
