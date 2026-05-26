@@ -10,12 +10,19 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { colors, fonts, shadow } from "../theme";
+import { colors, fonts } from "../theme";
 
 const WelcomeScreen = ({ navigation }) => {
-  const { height } = useWindowDimensions();
-  const compact = height < 720;
+  const { width, height } = useWindowDimensions();
+  const compact = height < 740;
+  const narrow = width < 370;
+  const logoPanelHeight = Math.min(
+    Math.max(height * (compact ? 0.36 : 0.4), 270),
+    compact ? 315 : 360,
+  );
+  const logoSize = Math.min(width * 0.62, compact ? 220 : 250);
+  const heroHeight = Math.min(width * 0.58, compact ? 205 : 235);
+  const titleSize = Math.min(width * (narrow ? 0.13 : 0.145), compact ? 46 : 54);
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(22)).current;
 
@@ -47,42 +54,67 @@ const WelcomeScreen = ({ navigation }) => {
             { opacity: fade, transform: [{ translateY: slide }] },
           ]}
         >
-          <View style={[styles.logoPanel, compact && styles.logoPanelCompact]}>
+          <View style={[styles.logoPanel, { height: logoPanelHeight }]}>
             <Image
               source={require("../assets/images/mitigatepluswholelogo.png")}
               resizeMode="contain"
-              style={styles.logo}
+              style={[
+                styles.logo,
+                {
+                  width: logoSize,
+                  height: logoSize * 0.62,
+                  marginTop: compact ? 8 : 14,
+                },
+              ]}
             />
             <Image
               source={require("../assets/images/welcomepagelogo.png")}
-              resizeMode="cover"
-              style={[styles.hero, compact && styles.heroCompact]}
+              resizeMode="contain"
+              style={[
+                styles.hero,
+                {
+                  width: width * 1.08,
+                  height: heroHeight,
+                  marginTop: compact ? 4 : 10,
+                },
+              ]}
             />
           </View>
           <View style={[styles.bluePanel, compact && styles.bluePanelCompact]}>
-            <Text style={[styles.title, compact && styles.titleCompact]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  fontSize: titleSize,
+                  lineHeight: Math.round(titleSize * 1.08),
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.76}
+            >
               WELCOME!
             </Text>
-            <Text style={styles.tagline}>
+            <Text style={[styles.tagline, compact && styles.taglineCompact]}>
               Know Your Risks. Prevent. Protect.
             </Text>
-            <Text style={styles.body}>
+            <Text style={[styles.body, compact && styles.bodyCompact]}>
               MitigatePlus empowers Manila residents and the LGU to identify,
               report, and reduce disaster risks together.
             </Text>
-            <Text style={styles.micro}>
+            <Text style={[styles.micro, compact && styles.microCompact]}>
               Get started. Log in or Sign up to join the fight against
               disasters.
             </Text>
-            <View style={styles.actionRow}>
+            <View style={[styles.actionRow, narrow && styles.actionRowNarrow]}>
               <TouchableOpacity
-                style={styles.loginButton}
+                style={[styles.loginButton, narrow && styles.buttonNarrow]}
                 onPress={() => navigation.navigate("Login")}
               >
                 <Text style={styles.loginText}>Login</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.signupButton}
+                style={[styles.signupButton, narrow && styles.buttonNarrow]}
                 onPress={() => navigation.navigate("Register")}
               >
                 <Text style={styles.signupText}>Sign Up</Text>
@@ -103,93 +135,75 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, width: "100%" },
   phoneCard: {
     width: "100%",
-    minHeight: "100%",
+    flexGrow: 1,
     borderRadius: 0,
     backgroundColor: colors.blue,
     overflow: "hidden",
   },
   logoPanel: {
-    height: 380,
     backgroundColor: "#fff",
     alignItems: "center",
+    justifyContent: "flex-start",
     overflow: "hidden",
   },
-  logoPanelCompact: { height: 325 },
-  logo: { width: 260, height: 250, marginTop: -45, zIndex: 1, right: -7 },
-  hero: { width: "130%", height: 240, marginTop: -105, right: 3 },
-  heroCompact: { height: 236 },
+  logo: { zIndex: 1 },
+  hero: {},
   bluePanel: {
     flex: 1,
-    marginTop: -40,
+    minHeight: 0,
+    marginTop: -22,
     backgroundColor: colors.blue,
-    borderTopLeftRadius: 50,
-    borderTopRightRadius: 50,
+    borderTopLeftRadius: 38,
+    borderTopRightRadius: 38,
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: -35,
-    justifyContent: "center",
+    paddingHorizontal: 26,
+    paddingTop: 34,
+    paddingBottom: 34,
+    justifyContent: "space-between",
   },
-  bluePanelCompact: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 18 },
-  shield: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    backgroundColor: colors.navy,
-    borderWidth: 5,
-    borderColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: -42,
-    marginBottom: 10,
-  },
-  shieldCompact: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    marginTop: -34,
-    marginBottom: 8,
-  },
+  bluePanelCompact: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 },
   title: {
     color: "#fff",
-    textShadowColor: "rgba(2,2,2,2.24)",
+    textShadowColor: "rgba(2,2,2,0.32)",
     textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 20,
-    fontSize: 60,
+    textShadowRadius: 10,
     fontFamily: fonts.black,
     letterSpacing: 0,
-    top: -45,
+    textAlign: "center",
+    width: "100%",
   },
-  titleCompact: { fontSize: 29 },
   tagline: {
     color: "#fff",
     textShadowColor: "rgba(0,0,0,0.24)",
     textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 20,
+    textShadowRadius: 10,
     fontSize: 14,
     fontFamily: fonts.bold,
-    marginTop: 2,
-    top: -60,
+    marginTop: 14,
+    textAlign: "center",
   },
+  taglineCompact: { fontSize: 13, marginTop: 10 },
   body: {
-    color: "rgba(255,255,255,2.9)",
+    color: "#fff",
     fontSize: 15,
     fontFamily: fonts.extraBold,
-    lineHeight: 19,
+    lineHeight: 22,
     textAlign: "center",
-    marginTop: 14,
-    top: -50,
+    marginTop: 24,
   },
+  bodyCompact: { fontSize: 13, lineHeight: 19, marginTop: 16 },
   micro: {
     color: "#fff",
     fontSize: 12,
     fontFamily: fonts.medium,
     textAlign: "center",
-    marginTop: 14,
-    marginBottom: 18,
-    top: -40,
+    lineHeight: 18,
+    marginTop: 26,
+    marginBottom: 22,
   },
+  microCompact: { fontSize: 11, lineHeight: 16, marginTop: 18, marginBottom: 16 },
   actionRow: { flexDirection: "row", gap: 14, width: "100%" },
+  actionRowNarrow: { flexDirection: "column", gap: 10 },
   loginButton: {
     flex: 1,
     height: 52,
@@ -197,7 +211,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    top: -40,
   },
   signupButton: {
     flex: 1,
@@ -206,8 +219,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#ff1212",
     alignItems: "center",
     justifyContent: "center",
-    top: -40,
   },
+  buttonNarrow: { flex: 0, width: "100%" },
   loginText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 14 },
   signupText: { color: "#fff", fontFamily: fonts.bold, fontSize: 14 },
 });
