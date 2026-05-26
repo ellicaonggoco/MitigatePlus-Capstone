@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -21,7 +23,10 @@
     },
     "android": {
       "package": "com.ellicaonggoco.mitigateplus",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/mitigateplus-logoonly.png",
         "backgroundColor": "#ffffff"
@@ -30,6 +35,14 @@
     "web": {
       "favicon": "./src/assets/images/mitigateplus-logoonly.png"
     },
-    "plugins": ["expo-secure-store", "expo-location"]
+    "plugins": [
+      "expo-secure-store",
+      "expo-location"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "36cdafbb-a050-43a8-8129-328c567602bf"
+      }
+    }
   }
 }
