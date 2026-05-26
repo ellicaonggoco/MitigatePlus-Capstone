@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-app-sdk50",
-    "slug": "mobile-app-sdk50",
+    "name": "MitigatePlus",
+    "slug": "mitigateplus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/images/mitigateplus-logoonly.png",
@@ -20,6 +20,7 @@
       }
     },
     "android": {
+      "package": "com.ellicaonggoco.mitigateplus",
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/mitigateplus-logoonly.png",
