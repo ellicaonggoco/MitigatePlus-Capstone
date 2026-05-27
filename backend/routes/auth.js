@@ -21,23 +21,83 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+const normalizeEmail = (email = "") => email.trim().toLowerCase();
+
+const createAndSendRegisterOTP = async (user, officialRequested = false) => {
+  await OTP.deleteMany({ email: user.email, type: "register" });
+
+  const otp = generateOTP();
+  const otpRecord = await OTP.create({
+    email: user.email,
+    otp,
+    type: "register",
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+  });
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: "MitigatePlus - Email Verification OTP",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0d2b6b;">MitigatePlus - Verify Your Email</h2>
+          <p>Hello ${user.name || ""},</p>
+          <p>Your OTP for email verification is:</p>
+          <h1 style="color: #1565c0; font-size: 36px; text-align: center; background: #f0f4ff; padding: 20px; border-radius: 10px;">
+            ${otp}
+          </h1>
+          <p>This OTP will expire in 10 minutes.</p>
+          ${
+            officialRequested
+              ? "<p>Your account will open as a resident after verification. Barangay official tools will be enabled after admin approval.</p>"
+              : ""
+          }
+          <p>If you did not create an account, please ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    await OTP.deleteOne({ _id: otpRecord._id });
+    throw error;
+  }
+};
+
 // @desc    Register user
 // @route   POST /api/auth/register
 router.post("/register", upload.single("officialId"), async (req, res) => {
   try {
-    const { name, email, password, phone, address, barangay, isBarangayOfficial } = req.body;
+    const { name, password, phone, address, barangay, isBarangayOfficial } = req.body;
+    const email = normalizeEmail(req.body.email);
     const officialRequested = isBarangayOfficial === "true";
 
     // Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
+      if (!userExists.isEmailVerified || userExists.status === "pending_otp") {
+        await createAndSendRegisterOTP(
+          userExists,
+          userExists.isBarangayOfficial,
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: "This email is already registered but not verified. We sent a new OTP.",
+          data: {
+            userId: userExists._id,
+            email: userExists.email,
+            requiresOTP: true,
+            officialAccessPending:
+              userExists.isBarangayOfficial &&
+              userExists.role !== "barangay_official",
+          },
+        });
+      }
+
       return res.status(400).json({
         success: false,
         message: "User already exists with this email",
       });
     }
-
-    await OTP.deleteMany({ email, type: "register" });
 
     // Create user
     const userData = {
@@ -55,36 +115,12 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
 
     const user = await User.create(userData);
 
-    const otp = generateOTP();
-
-    await OTP.create({
-      email,
-      otp,
-      type: "register",
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    });
-
-    await sendEmail({
-      email: user.email,
-      subject: "MitigatePlus - Email Verification OTP",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0d2b6b;">MitigatePlus - Verify Your Email</h2>
-          <p>Hello ${user.name},</p>
-          <p>Your OTP for email verification is:</p>
-          <h1 style="color: #1565c0; font-size: 36px; text-align: center; background: #f0f4ff; padding: 20px; border-radius: 10px;">
-            ${otp}
-          </h1>
-          <p>This OTP will expire in 10 minutes.</p>
-          ${
-            officialRequested
-              ? "<p>Your account will open as a resident after verification. Barangay official tools will be enabled after admin approval.</p>"
-              : ""
-          }
-          <p>If you did not create an account, please ignore this email.</p>
-        </div>
-      `,
-    });
+    try {
+      await createAndSendRegisterOTP(user, officialRequested);
+    } catch (error) {
+      await User.deleteOne({ _id: user._id });
+      throw error;
+    }
 
     res.status(201).json({
       success: true,
@@ -100,9 +136,15 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists with this email",
+      });
+    }
     res.status(500).json({
       success: false,
-      message: "Server error during registration",
+      message: "Could not send OTP. Please check the email address and try again.",
     });
   }
 });
@@ -111,7 +153,8 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
 // @route   POST /api/auth/verify-otp
 router.post("/verify-otp", async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { otp } = req.body;
 
     const otpRecord = await OTP.findOne({
       email,
@@ -146,15 +189,27 @@ router.post("/verify-otp", async (req, res) => {
     otpRecord.isUsed = true;
     await otpRecord.save();
 
-    // Update user
-    const user = await User.findOneAndUpdate(
-      { email },
-      {
-        isEmailVerified: true,
-        status: "active",
-      },
-      { new: true },
-    );
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No user found with this email",
+      });
+    }
+
+    const wasPendingApproval = user.status === "pending_approval";
+    user.isEmailVerified = true;
+    if (user.status === "pending_otp" || user.status === "pending_approval") {
+      user.status = "active";
+    }
+    if (
+      wasPendingApproval &&
+      user.isBarangayOfficial &&
+      user.role === "barangay_official"
+    ) {
+      user.role = "resident";
+    }
+    await user.save();
 
     // Log activity
     await ActivityLog.create({
@@ -200,39 +255,24 @@ router.post("/verify-otp", async (req, res) => {
 // @route   POST /api/auth/resend-otp
 router.post("/resend-otp", async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = normalizeEmail(req.body.email);
 
-    // Delete existing OTPs
-    await OTP.deleteMany({ email, type: "register" });
-
-    // Generate new OTP
-    const otp = generateOTP();
-
-    // Create new OTP record
-    await OTP.create({
-      email,
-      otp,
-      type: "register",
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    });
-
-    // Send email
     const user = await User.findOne({ email });
-    await sendEmail({
-      email,
-      subject: "MitigatePlus - New OTP for Email Verification",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0d2b6b;">MitigatePlus - New OTP</h2>
-          <p>Hello ${user ? user.name : ""},</p>
-          <p>Your new OTP for email verification is:</p>
-          <h1 style="color: #1565c0; font-size: 36px; text-align: center; background: #f0f4ff; padding: 20px; border-radius: 10px;">
-            ${otp}
-          </h1>
-          <p>This OTP will expire in 10 minutes.</p>
-        </div>
-      `,
-    });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No user found with this email",
+      });
+    }
+
+    if (user.isEmailVerified && user.status !== "pending_otp") {
+      return res.status(400).json({
+        success: false,
+        message: "This email is already verified. Please log in.",
+      });
+    }
+
+    await createAndSendRegisterOTP(user, user.isBarangayOfficial);
 
     res.json({
       success: true,
@@ -251,7 +291,8 @@ router.post("/resend-otp", async (req, res) => {
 // @route   POST /api/auth/login
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
 
     // Validate email & password
     if (!email || !password) {
@@ -280,7 +321,7 @@ router.post("/login", async (req, res) => {
     }
 
     // Check account status
-    if (user.status === "pending_otp") {
+    if (!user.isEmailVerified || user.status === "pending_otp") {
       return res.status(403).json({
         success: false,
         message: "Please verify your email first",
@@ -289,11 +330,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (user.status === "pending_approval" && user.isBarangayOfficial) {
-      user.status = "active";
-      user.role = "resident";
-      await user.save();
-    } else if (user.status === "pending_approval") {
+    if (user.status === "pending_approval") {
       return res.status(403).json({
         success: false,
         message: "Your account is pending approval by admin",
