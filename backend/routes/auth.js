@@ -322,9 +322,10 @@ router.post("/login", async (req, res) => {
 
     // Check account status
     if (!user.isEmailVerified || user.status === "pending_otp") {
+      await createAndSendRegisterOTP(user, user.isBarangayOfficial);
       return res.status(403).json({
         success: false,
-        message: "Please verify your email first",
+        message: "Please verify your email first. We sent a new OTP.",
         requiresOTP: true,
         email: user.email,
       });
