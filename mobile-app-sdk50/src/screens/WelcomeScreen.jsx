@@ -9,6 +9,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, fonts } from "../theme";
 
@@ -22,7 +23,10 @@ const WelcomeScreen = ({ navigation }) => {
   );
   const logoSize = Math.min(width * 0.72, compact ? 245 : 275);
   const heroHeight = Math.min(width * 0.74, compact ? 265 : 300);
-  const titleSize = Math.min(width * (narrow ? 0.13 : 0.145), compact ? 46 : 54);
+  const titleSize = Math.min(
+    width * (narrow ? 0.155 : 0.17),
+    compact ? 56 : 64,
+  );
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(22)).current;
 
@@ -63,7 +67,8 @@ const WelcomeScreen = ({ navigation }) => {
                 {
                   width: logoSize,
                   height: logoSize * 0.62,
-                  marginTop: compact ? 8 : 14,
+                  marginTop: compact ? 8 : -25,
+                  marginBottom: compact ? 8 : 40,
                 },
               ]}
             />
@@ -75,12 +80,15 @@ const WelcomeScreen = ({ navigation }) => {
                 {
                   width: width * 1.24,
                   height: heroHeight,
-                  marginTop: compact ? -6 : -2,
+                  marginTop: compact ? -130 : -132,
                 },
               ]}
             />
           </View>
-          <View style={[styles.bluePanel, compact && styles.bluePanelCompact]}>
+          <LinearGradient
+            colors={[colors.navyDark, colors.blue, colors.sky]}
+            style={[styles.bluePanel, compact && styles.bluePanelCompact]}
+          >
             <Text
               style={[
                 styles.title,
@@ -120,7 +128,7 @@ const WelcomeScreen = ({ navigation }) => {
                 <Text style={styles.signupText}>Sign Up</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </LinearGradient>
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -137,7 +145,7 @@ const styles = StyleSheet.create({
     width: "100%",
     flexGrow: 1,
     borderRadius: 0,
-    backgroundColor: colors.blue,
+    backgroundColor: colors.navyDark,
     overflow: "hidden",
   },
   logoPanel: {
@@ -151,7 +159,7 @@ const styles = StyleSheet.create({
   bluePanel: {
     flex: 1,
     minHeight: 0,
-    marginTop: -22,
+    marginTop: -29,
     backgroundColor: colors.blue,
     borderTopLeftRadius: 38,
     borderTopRightRadius: 38,
@@ -159,9 +167,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingTop: 28,
     paddingBottom: 34,
-    justifyContent: "space-between",
+    justifyContent: "center",
   },
-  bluePanelCompact: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 24 },
+  bluePanelCompact: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 28,
+  },
   title: {
     color: "#fff",
     textShadowColor: "rgba(2,2,2,0.32)",
@@ -177,52 +189,57 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.24)",
     textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 10,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: fonts.bold,
-    marginTop: 12,
+    marginTop: 14,
     textAlign: "center",
   },
-  taglineCompact: { fontSize: 13, marginTop: 10 },
+  taglineCompact: { fontSize: 14, marginTop: 10 },
   body: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: fonts.extraBold,
-    lineHeight: 22,
+    lineHeight: 23,
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 22,
   },
-  bodyCompact: { fontSize: 13, lineHeight: 19, marginTop: 16 },
+  bodyCompact: { fontSize: 14, lineHeight: 20, marginTop: 16 },
   micro: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: fonts.medium,
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 19,
     marginTop: 22,
-    marginBottom: 20,
+    marginBottom: 22,
   },
-  microCompact: { fontSize: 11, lineHeight: 16, marginTop: 18, marginBottom: 16 },
+  microCompact: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 16,
+    marginBottom: 18,
+  },
   actionRow: { flexDirection: "row", gap: 14, width: "100%" },
   actionRowNarrow: { flexDirection: "column", gap: 10 },
   loginButton: {
     flex: 1,
-    height: 52,
-    borderRadius: 16,
+    height: 56,
+    borderRadius: 17,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
   signupButton: {
     flex: 1,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: "#ff1212",
+    height: 56,
+    borderRadius: 17,
+    backgroundColor: colors.red,
     alignItems: "center",
     justifyContent: "center",
   },
   buttonNarrow: { flex: 0, width: "100%" },
-  loginText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 14 },
-  signupText: { color: "#fff", fontFamily: fonts.bold, fontSize: 14 },
+  loginText: { color: colors.navy, fontFamily: fonts.bold, fontSize: 15 },
+  signupText: { color: "#fff", fontFamily: fonts.bold, fontSize: 15 },
 });
 
 export default WelcomeScreen;

@@ -84,8 +84,8 @@ const RegisterScreen = ({ navigation }) => {
         navigation.navigate("VerifyOTP", { email: form.email.trim() });
       } else {
         Alert.alert(
-          "Submitted for approval",
-          "Your barangay official account was submitted. You can sign in after an admin approves your ID.",
+          "Registration submitted",
+          "Verify your email to continue. Official tools unlock after admin approval.",
           [{ text: "OK", onPress: () => navigation.navigate("Login") }],
         );
       }
@@ -143,7 +143,9 @@ const RegisterScreen = ({ navigation }) => {
           >
             <View>
               <Text style={styles.toggleTitle}>Are you a Barangay Official?</Text>
-              <Text style={styles.toggleText}>Requires ID upload and admin approval.</Text>
+              <Text style={styles.toggleText}>
+                You can use resident features after OTP. Official tools require admin approval.
+              </Text>
             </View>
             <Ionicons
               name={form.isBarangayOfficial ? "toggle" : "toggle-outline"}

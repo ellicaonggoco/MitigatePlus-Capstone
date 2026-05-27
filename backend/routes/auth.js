@@ -37,9 +37,7 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
       });
     }
 
-    if (!officialRequested) {
-      await OTP.deleteMany({ email, type: "register" });
-    }
+    await OTP.deleteMany({ email, type: "register" });
 
     // Create user
     const userData = {
@@ -49,51 +47,55 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
       phone,
       address,
       barangay,
-      role: officialRequested ? "barangay_official" : "resident",
+      role: "resident",
       isBarangayOfficial: officialRequested,
       officialIdUrl: req.file ? req.file.path : null,
-      status: officialRequested ? "pending_approval" : "pending_otp",
+      status: "pending_otp",
     };
 
     const user = await User.create(userData);
 
-    if (!officialRequested) {
-      const otp = generateOTP();
+    const otp = generateOTP();
 
-      await OTP.create({
-        email,
-        otp,
-        type: "register",
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      });
+    await OTP.create({
+      email,
+      otp,
+      type: "register",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
 
-      await sendEmail({
-        email: user.email,
-        subject: "MitigatePlus - Email Verification OTP",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #0d2b6b;">MitigatePlus - Verify Your Email</h2>
-            <p>Hello ${user.name},</p>
-            <p>Your OTP for email verification is:</p>
-            <h1 style="color: #1565c0; font-size: 36px; text-align: center; background: #f0f4ff; padding: 20px; border-radius: 10px;">
-              ${otp}
-            </h1>
-            <p>This OTP will expire in 10 minutes.</p>
-            <p>If you did not create an account, please ignore this email.</p>
-          </div>
-        `,
-      });
-    }
+    await sendEmail({
+      email: user.email,
+      subject: "MitigatePlus - Email Verification OTP",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0d2b6b;">MitigatePlus - Verify Your Email</h2>
+          <p>Hello ${user.name},</p>
+          <p>Your OTP for email verification is:</p>
+          <h1 style="color: #1565c0; font-size: 36px; text-align: center; background: #f0f4ff; padding: 20px; border-radius: 10px;">
+            ${otp}
+          </h1>
+          <p>This OTP will expire in 10 minutes.</p>
+          ${
+            officialRequested
+              ? "<p>Your account will open as a resident after verification. Barangay official tools will be enabled after admin approval.</p>"
+              : ""
+          }
+          <p>If you did not create an account, please ignore this email.</p>
+        </div>
+      `,
+    });
 
     res.status(201).json({
       success: true,
       message: officialRequested
-        ? "Official account submitted. Please wait for admin approval."
+        ? "User registered. Verify your email to continue as a resident while admin reviews official access."
         : "User registered. Please verify your email with the OTP sent.",
       data: {
         userId: user._id,
         email: user.email,
-        requiresOTP: user.status === "pending_otp",
+        requiresOTP: true,
+        officialAccessPending: officialRequested,
       },
     });
   } catch (error) {
@@ -179,6 +181,10 @@ router.post("/verify-otp", async (req, res) => {
         barangay: user.barangay,
         phone: user.phone,
         address: user.address,
+        status: user.status,
+        isBarangayOfficial: user.isBarangayOfficial,
+        officialAccessPending:
+          user.isBarangayOfficial && user.role !== "barangay_official",
       },
     });
   } catch (error) {
@@ -283,7 +289,11 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (user.status === "pending_approval") {
+    if (user.status === "pending_approval" && user.isBarangayOfficial) {
+      user.status = "active";
+      user.role = "resident";
+      await user.save();
+    } else if (user.status === "pending_approval") {
       return res.status(403).json({
         success: false,
         message: "Your account is pending approval by admin",
@@ -320,6 +330,9 @@ router.post("/login", async (req, res) => {
         role: user.role,
         barangay: user.barangay,
         status: user.status,
+        isBarangayOfficial: user.isBarangayOfficial,
+        officialAccessPending:
+          user.isBarangayOfficial && user.role !== "barangay_official",
       },
     });
   } catch (error) {
@@ -796,8 +809,12 @@ router.get(
   async (req, res) => {
     try {
       const officials = await User.find({
-        role: "barangay_official",
-        status: "pending_approval",
+        isBarangayOfficial: true,
+        officialIdUrl: { $ne: null },
+        $or: [
+          { role: { $ne: "barangay_official" }, status: "active" },
+          { role: "barangay_official", status: "pending_approval" },
+        ],
       }).select("-password");
 
       res.json({
@@ -827,6 +844,7 @@ router.patch(
         {
           status: "active",
           isEmailVerified: true,
+          role: "barangay_official",
         },
         { new: true },
       ).select("-password");
