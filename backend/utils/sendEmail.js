@@ -34,6 +34,7 @@ const sendEmail = async (options) => {
         message: error.message,
       });
       error.publicMessage =
+        error.response?.data?.message ||
         "Email API failed. Check RESEND_API_KEY and EMAIL_FROM in Render.";
       throw error;
     }
