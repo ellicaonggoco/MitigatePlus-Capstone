@@ -3,7 +3,8 @@ const axios = require("axios");
 
 const sendEmail = async (options) => {
   if (process.env.RESEND_API_KEY) {
-    const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    const fromEmail =
+      process.env.EMAIL_FROM || process.env.EMAIL_USER || "onboarding@resend.dev";
     if (!fromEmail) {
       throw new Error("EMAIL_FROM or EMAIL_USER is required to send email");
     }
