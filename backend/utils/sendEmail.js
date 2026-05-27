@@ -1,6 +1,43 @@
 const nodemailer = require("nodemailer");
+const axios = require("axios");
 
 const sendEmail = async (options) => {
+  if (process.env.RESEND_API_KEY) {
+    const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    if (!fromEmail) {
+      throw new Error("EMAIL_FROM or EMAIL_USER is required to send email");
+    }
+
+    try {
+      await axios.post(
+        "https://api.resend.com/emails",
+        {
+          from: `MitigatePlus <${fromEmail}>`,
+          to: [options.email],
+          subject: options.subject,
+          html: options.html,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 15000,
+        },
+      );
+      return;
+    } catch (error) {
+      console.error("Resend email error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      error.publicMessage =
+        "Email API failed. Check RESEND_API_KEY and EMAIL_FROM in Render.";
+      throw error;
+    }
+  }
+
   const transporter = nodemailer.createTransport({
     service: "gmail",
     connectionTimeout: 5000,
