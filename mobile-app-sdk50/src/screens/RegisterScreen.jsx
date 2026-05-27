@@ -90,7 +90,10 @@ const RegisterScreen = ({ navigation }) => {
         );
       }
     } catch (err) {
-      Alert.alert("Registration failed", err.response?.data?.message || "Please try again.");
+      Alert.alert(
+        "Registration failed",
+        err.response?.data?.message || err.message || "Please try again.",
+      );
     } finally {
       setLoading(false);
     }
