@@ -144,7 +144,9 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
     }
     res.status(500).json({
       success: false,
-      message: "Could not send OTP. Please check the email address and try again.",
+      message:
+        error.publicMessage ||
+        "Could not send OTP. Please check the email address and try again.",
     });
   }
 });
@@ -282,7 +284,7 @@ router.post("/resend-otp", async (req, res) => {
     console.error("Resend OTP error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while resending OTP",
+      message: error.publicMessage || "Server error while resending OTP",
     });
   }
 });

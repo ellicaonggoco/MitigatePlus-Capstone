@@ -25,7 +25,30 @@ const sendEmail = async (options) => {
     return;
   }
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error("Email send error:", {
+      code: error.code,
+      command: error.command,
+      responseCode: error.responseCode,
+      response: error.response,
+    });
+
+    if (error.code === "EAUTH" || error.responseCode === 535) {
+      error.publicMessage =
+        "Gmail rejected EMAIL_USER or EMAIL_PASS. Use the same Gmail account that generated the App Password.";
+    } else if (
+      error.code === "ETIMEDOUT" ||
+      error.code === "ESOCKET" ||
+      error.code === "ECONNECTION"
+    ) {
+      error.publicMessage =
+        "Email service timed out. Please redeploy and try again, or check Gmail SMTP access.";
+    }
+
+    throw error;
+  }
 };
 
 module.exports = sendEmail;
