@@ -17,13 +17,13 @@ const Avatar = ({ user, className = "w-10 h-10 rounded-2xl" }) => {
       <img
         src={user.profilePictureUrl}
         alt={user?.name || "Profile"}
-        className={`${className} object-cover shadow-lg shadow-primary-500/20 border border-white/70`}
+        className={`${className} block shrink-0 object-cover overflow-hidden shadow-lg shadow-primary-500/20 border border-white/70`}
       />
     );
   }
 
   return (
-    <div className={`${className} bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-lg shadow-primary-500/20`}>
+    <div className={`${className} shrink-0 overflow-hidden bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-lg shadow-primary-500/20`}>
       <span className="text-white font-bold text-sm">
         {user?.name?.charAt(0)?.toUpperCase()}
       </span>
@@ -91,7 +91,7 @@ const Navbar = () => {
         const activePings = (res.data.data || []).filter(
           (report) =>
             report.isEmergency &&
-            !["validated", "rejected"].includes(report.status),
+            !["validated", "rejected", "on_hold"].includes(report.status),
         );
         activePings.forEach(addEmergencyNotification);
       } catch (err) {
@@ -247,7 +247,7 @@ const Navbar = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 onClick={() => setShowProfile(!showProfile)}
-                className="block"
+                className="block rounded-2xl"
               >
                 <Avatar user={user} />
               </motion.button>
@@ -259,15 +259,15 @@ const Navbar = () => {
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className="absolute top-full mt-2 right-0 w-56 glass-card p-3 z-50"
+                    className="absolute top-full mt-3 right-0 w-64 glass-card p-4 z-50"
                   >
-                    <div className="flex items-center space-x-3 mb-3 pb-3 border-b border-white/20">
+                    <div className="flex items-start gap-3 mb-3 pb-3 border-b border-white/20">
                       <Avatar user={user} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-navy-900 truncate">
                           {user?.name}
                         </p>
-                        <p className="text-xs text-navy-500">{user?.email}</p>
+                        <p className="text-xs text-navy-500 break-all leading-4">{user?.email}</p>
                       </div>
                     </div>
                     <div className="space-y-1">

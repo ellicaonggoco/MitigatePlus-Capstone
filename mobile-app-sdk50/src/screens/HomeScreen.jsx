@@ -86,6 +86,18 @@ const HomeScreen = ({ navigation }) => {
           />
         </View>
 
+        {user?.isBarangayOfficial && user?.role !== "barangay_official" ? (
+          <View style={styles.pendingOfficialCard}>
+            <Ionicons name="time-outline" size={22} color={colors.blue} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingOfficialTitle}>Official access pending</Text>
+              <Text style={styles.pendingOfficialText}>
+                You can use resident features now. The Official page will appear after admin approval.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         {weather ? (
           <View style={styles.weatherCard}>
             <View style={styles.weatherTop}>
@@ -214,6 +226,9 @@ const styles = StyleSheet.create({
   dangerBanner: { backgroundColor: "#fef2f2", borderColor: "#fecaca" },
   bannerTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 15 },
   bannerText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, maxWidth: 260, marginTop: 2 },
+  pendingOfficialCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#eef7ff", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, marginTop: 10 },
+  pendingOfficialTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 14 },
+  pendingOfficialText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 2 },
   welcomeCard: { borderRadius: 28, padding: 20, marginTop: 12, overflow: "hidden", ...shadow.card },
   communityBadge: {
     alignSelf: "flex-start",

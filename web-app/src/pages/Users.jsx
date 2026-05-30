@@ -17,6 +17,7 @@ import {
   EnvelopeIcon,
   HomeIcon,
   TrashIcon,
+  ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
 
 const Users = () => {
@@ -107,9 +108,10 @@ const Users = () => {
   const handleApprove = async (id) => {
     try {
       await api.patch(`/auth/officials/${id}/approve`);
+      toast.success("Barangay official approved");
       fetchUsers();
     } catch (err) {
-      console.error(err);
+      toast.error(err.response?.data?.message || "Could not approve official");
     }
   };
 
@@ -205,7 +207,7 @@ const Users = () => {
               animate={{ opacity: 1, y: 0 }}
               className="glass-card p-6 border-l-4 border-yellow-500"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-3 rounded-2xl bg-yellow-100">
                     <ClockIcon className="w-6 h-6 text-yellow-600" />
@@ -217,19 +219,94 @@ const Users = () => {
                     <p className="text-sm text-navy-600">
                       {pending.length} official(s) awaiting approval
                     </p>
+                    <p className="text-xs text-navy-500 mt-1">
+                      Contact the applicant by phone or email before approving official access.
+                    </p>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  {pending.map((o) => (
-                    <button
-                      key={o._id}
-                      onClick={() => handleApprove(o._id)}
-                      className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-semibold"
-                    >
-                      Approve {o.name}
-                    </button>
-                  ))}
-                </div>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
+                {pending.map((o) => (
+                  <div key={o._id} className="rounded-2xl bg-white/60 border border-white/70 p-4">
+                    <div className="flex gap-4">
+                      <a
+                        href={o.officialIdUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm"
+                        title="Open uploaded official ID"
+                      >
+                        <img
+                          src={o.officialIdUrl}
+                          alt={`${o.name} official ID`}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <span className="absolute bottom-2 right-2 rounded-lg bg-white/90 p-1 text-primary-700 shadow-sm">
+                          <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                        </span>
+                      </a>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-navy-900 truncate">{o.name}</p>
+                            <p className="text-xs font-semibold text-yellow-700">Resident account, official access pending</p>
+                          </div>
+                          <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-700">
+                            Review ID
+                          </span>
+                        </div>
+                        <div className="mt-3 space-y-1 text-sm text-navy-700">
+                          <p className="flex items-center gap-2 break-all">
+                            <EnvelopeIcon className="h-4 w-4 shrink-0 text-navy-400" />
+                            {o.email}
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <PhoneIcon className="h-4 w-4 shrink-0 text-navy-400" />
+                            {o.phone || "No phone provided"}
+                          </p>
+                          <p className="flex items-start gap-2">
+                            <HomeIcon className="h-4 w-4 shrink-0 text-navy-400 mt-0.5" />
+                            <span>{[o.address, o.barangay].filter(Boolean).join(", ") || "No address provided"}</span>
+                          </p>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedUser(o);
+                              setShowModal(true);
+                            }}
+                            className="px-4 py-2 rounded-xl bg-white text-primary-700 text-sm font-semibold shadow-sm"
+                          >
+                            View details
+                          </button>
+                          <a
+                            href={`mailto:${o.email}`}
+                            className="px-4 py-2 rounded-xl bg-blue-50 text-primary-700 text-sm font-semibold"
+                          >
+                            Email
+                          </a>
+                          {o.phone ? (
+                            <a
+                              href={`tel:${o.phone}`}
+                              className="px-4 py-2 rounded-xl bg-blue-50 text-primary-700 text-sm font-semibold"
+                            >
+                              Call
+                            </a>
+                          ) : null}
+                          <button
+                            onClick={() => handleApprove(o._id)}
+                            className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-semibold"
+                          >
+                            Approve official
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-3 rounded-xl bg-yellow-50 px-3 py-2 text-xs font-medium text-yellow-800">
+                      Note: Verify the uploaded ID and contact details before approving. After approval, this user will see the Official page in the mobile app.
+                    </p>
+                  </div>
+                ))}
               </div>
             </motion.div>
           )}
@@ -539,14 +616,22 @@ const Users = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass-card max-w-md w-full p-8"
+              className="glass-card max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto"
             >
               <div className="text-center mb-6">
-                <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-xl mb-4">
-                  <span className="text-3xl font-bold text-white">
-                    {selectedUser.name?.charAt(0)?.toUpperCase()}
-                  </span>
-                </div>
+                {selectedUser.profilePictureUrl ? (
+                  <img
+                    src={selectedUser.profilePictureUrl}
+                    alt={selectedUser.name}
+                    className="w-20 h-20 mx-auto rounded-3xl object-cover shadow-xl mb-4 border-2 border-white"
+                  />
+                ) : (
+                  <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-xl mb-4">
+                    <span className="text-3xl font-bold text-white">
+                      {selectedUser.name?.charAt(0)?.toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 <h2 className="text-2xl font-bold text-navy-900">
                   {selectedUser.name}
                 </h2>
@@ -580,6 +665,34 @@ const Users = () => {
                     {selectedUser.phone || "Not provided"}
                   </span>
                 </div>
+                {selectedUser.officialIdUrl ? (
+                  <div className="rounded-2xl bg-white/50 border border-white/70 p-3">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <span className="font-semibold text-navy-700">
+                        Uploaded official ID
+                      </span>
+                      <a
+                        href={selectedUser.officialIdUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-bold text-primary-700"
+                      >
+                        Open
+                        <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      </a>
+                    </div>
+                    <img
+                      src={selectedUser.officialIdUrl}
+                      alt={`${selectedUser.name} official ID`}
+                      className="max-h-64 w-full rounded-xl object-contain bg-slate-100"
+                    />
+                    {selectedUser.isBarangayOfficial && selectedUser.role !== "barangay_official" ? (
+                      <p className="mt-3 rounded-xl bg-yellow-50 px-3 py-2 text-xs font-medium text-yellow-800">
+                        Note: Contact this applicant before approval. Their mobile account remains resident-only until approved.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="glass-input flex items-center justify-between gap-4">
                   <span className="flex items-center gap-2 text-navy-500">
                     <EnvelopeIcon className="w-4 h-4" />

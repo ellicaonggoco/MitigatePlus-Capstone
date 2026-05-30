@@ -260,6 +260,8 @@ router.post("/verify-otp", async (req, res) => {
         barangay: user.barangay,
         phone: user.phone,
         address: user.address,
+        officialIdUrl: user.officialIdUrl,
+        profilePictureUrl: user.profilePictureUrl,
         status: user.status,
         isBarangayOfficial: user.isBarangayOfficial,
         officialAccessPending:
@@ -391,6 +393,10 @@ router.post("/login", async (req, res) => {
         email: user.email,
         role: user.role,
         barangay: user.barangay,
+        phone: user.phone,
+        address: user.address,
+        officialIdUrl: user.officialIdUrl,
+        profilePictureUrl: user.profilePictureUrl,
         status: user.status,
         isBarangayOfficial: user.isBarangayOfficial,
         officialAccessPending:
@@ -950,22 +956,29 @@ router.patch(
   authorize("admin", "superadmin"),
   async (req, res) => {
     try {
-      const user = await User.findByIdAndUpdate(
-        req.params.id,
-        {
-          status: "active",
-          isEmailVerified: true,
-          role: "barangay_official",
-        },
-        { new: true },
-      ).select("-password");
+      const targetUser = await User.findById(req.params.id);
 
-      if (!user) {
+      if (!targetUser) {
         return res.status(404).json({
           success: false,
           message: "Official not found",
         });
       }
+
+      if (!targetUser.isBarangayOfficial || !targetUser.officialIdUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "This user has no barangay official ID on file",
+        });
+      }
+
+      targetUser.status = "active";
+      targetUser.isEmailVerified = true;
+      targetUser.role = "barangay_official";
+      targetUser.barangayAssigned = targetUser.barangayAssigned || targetUser.barangay;
+      await targetUser.save();
+
+      const user = await User.findById(targetUser._id).select("-password");
 
       // Log activity
       await ActivityLog.create({
