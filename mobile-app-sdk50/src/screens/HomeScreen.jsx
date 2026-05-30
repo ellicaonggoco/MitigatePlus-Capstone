@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,8 +19,12 @@ import api from "../services/api";
 import { getMitigationTips } from "../utils/hazardTips";
 import { colors, fonts, riskColor, shadow } from "../theme";
 
+const ACTION_GAP = 11;
+const HORIZONTAL_PADDING = 36;
+
 const HomeScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const { width } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [reports, setReports] = useState([]);
@@ -60,6 +65,9 @@ const HomeScreen = ({ navigation }) => {
     reports.filter((r) => r.severity === "high").length +
     hazards.filter((h) => h.riskLevel === "high").length;
   const status = highCount > 0 ? "danger" : reports.length + hazards.length > 0 ? "warning" : "normal";
+  const actionCardWidth = useMemo(() => {
+    return Math.floor((width - HORIZONTAL_PADDING - ACTION_GAP * 2) / 3);
+  }, [width]);
   const statusCopy = {
     normal: ["Normal monitoring", "No high-risk validated hazards near Manila map layers."],
     warning: ["Stay alert", "Validated reports or mapped zones are active. Check the map before travelling."],
@@ -156,7 +164,11 @@ const HomeScreen = ({ navigation }) => {
             { icon: "briefcase", color: colors.aqua, bg: "#e4fbf6", label: "Go Bag", route: "GoBag" },
             { icon: "chatbubble-ellipses", color: colors.green, bg: "#ecfdf5", label: "MitiGo AI", route: "Chatbot" },
           ].map((item) => (
-            <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => navigation.navigate(item.route)}>
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.actionCard, { width: actionCardWidth }]}
+              onPress={() => navigation.navigate(item.route)}
+            >
               <View style={[styles.actionIcon, { backgroundColor: item.bg }]}>
                 <Ionicons name={item.icon} size={24} color={item.color} />
               </View>
@@ -259,8 +271,8 @@ const styles = StyleSheet.create({
   weatherStat: { flex: 1, textAlign: "center", color: colors.blue, fontFamily: fonts.bold, fontSize: 10, backgroundColor: "#e8f3ff", borderRadius: 999, paddingVertical: 6 },
   weatherTip: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 10 },
   sectionTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 18, marginTop: 22, marginBottom: 12 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 11 },
-  actionCard: { width: "31.1%", minHeight: 108, backgroundColor: colors.surface, borderRadius: 22, padding: 12, justifyContent: "space-between", ...shadow.soft },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: ACTION_GAP },
+  actionCard: { minHeight: 108, backgroundColor: colors.surface, borderRadius: 22, padding: 12, justifyContent: "space-between", ...shadow.soft },
   actionIcon: { width: 44, height: 44, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   actionLabel: { color: colors.text, fontFamily: fonts.semiBold, fontSize: 12 },
   reportCard: { backgroundColor: colors.surface, borderRadius: 22, padding: 14, flexDirection: "row", alignItems: "center", marginBottom: 10, ...shadow.soft },

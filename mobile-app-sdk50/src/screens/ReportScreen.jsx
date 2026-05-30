@@ -37,17 +37,17 @@ const isInsideManila = ({ latitude, longitude }) =>
 
 const safeJson = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
 
-const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, floodPoints, pickMode }) => {
+const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, floodPoints, pickMode, mapView }) => {
   const payload = {
     hazardType,
     pickMode,
     center: { lat: MANILA.latitude, lng: MANILA.longitude },
+    mapView: mapView ? { lat: mapView.latitude, lng: mapView.longitude, zoom: mapView.zoom } : null,
     bounds: [
       [MANILA_BOUNDS.minLat, MANILA_BOUNDS.minLng],
       [MANILA_BOUNDS.maxLat, MANILA_BOUNDS.maxLng],
     ],
     location: { lat: location.latitude, lng: location.longitude },
-    emoji: hazardEmojis[hazardType] || "\u{26A0}\u{FE0F}",
     startLocation: startLocation ? { lat: startLocation.latitude, lng: startLocation.longitude } : null,
     endLocation: endLocation ? { lat: endLocation.latitude, lng: endLocation.longitude } : null,
     floodPoints: floodPoints.map((point) => ({ lat: point.latitude, lng: point.longitude })),
@@ -71,10 +71,10 @@ const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, flo
       content: ""; position: absolute; inset: 4px; border-radius: 12px;
       background: linear-gradient(135deg, rgba(255,255,255,.32), rgba(255,255,255,0));
     }
-    .location-pin {
-      width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
-      font-size: 38px; line-height: 1; filter: drop-shadow(0 8px 12px rgba(185,28,28,.35));
-      text-shadow: -2px 0 #d32f2f, 2px 0 #d32f2f, 0 -2px #d32f2f, 0 2px #d32f2f, 0 3px 5px rgba(0,0,0,.35);
+    .location-pin { width: 42px; height: 52px; filter: drop-shadow(0 8px 12px rgba(185,28,28,.35)); }
+    .route-point {
+      width: 18px; height: 18px; border-radius: 999px; background: #1565c0;
+      border: 4px solid #fff; box-shadow: 0 5px 14px rgba(21,101,192,.32);
     }
   </style>
 </head>
@@ -84,29 +84,37 @@ const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, flo
   <script>
     const data = ${safeJson(payload)};
     const post = (payload) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-    const map = L.map('map', { zoomControl: false, maxBounds: data.bounds, maxBoundsViscosity: 1.0, minZoom: 12 }).setView([data.center.lat, data.center.lng], 13);
+    const initialView = data.mapView || data.center;
+    const initialZoom = data.mapView && data.mapView.zoom ? data.mapView.zoom : 13;
+    const map = L.map('map', { zoomControl: false, maxBounds: data.bounds, maxBoundsViscosity: 1.0, minZoom: 12 }).setView([initialView.lat, initialView.lng], initialZoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
     const iconSvg = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 14h7l-1 8 10-13h-7l0-7Z"/></svg>';
     const makeIcon = (color) => L.divIcon({ className: '', html: '<div class="pin" style="background:' + color + '">' + iconSvg + '</div>', iconSize: [38,38], iconAnchor: [19,19] });
-    const locationIcon = L.divIcon({ className: '', html: '<div class="location-pin">' + data.emoji + '</div>', iconSize: [42,42], iconAnchor: [21,40], popupAnchor: [0,-38] });
+    const locationIcon = L.divIcon({
+      className: '',
+      html: '<div class="location-pin"><svg viewBox="0 0 64 80" width="42" height="52" aria-hidden="true"><path fill="#ef1f2d" d="M32 3C18 3 6.5 14.3 6.5 28.2c0 19.2 25.5 48.8 25.5 48.8s25.5-29.6 25.5-48.8C57.5 14.3 46 3 32 3Z"/><path fill="#ff5b60" opacity=".55" d="M14.6 28.5C14.6 17.7 22.9 9 34 9c7.7 0 14.3 4.1 17.6 10.2C47.5 13.6 41 10.4 33.7 10.4c-10.5 0-18.5 8.2-18.5 18.4 0 5.5 2.1 12.1 5 18.5-3.3-6.5-5.6-13.3-5.6-18.8Z"/><circle fill="#fff" cx="32" cy="28" r="10.5"/></svg></div>',
+      iconSize: [42,52],
+      iconAnchor: [21,50],
+      popupAnchor: [0,-46]
+    });
     const startIcon = makeIcon('#0d2b6b');
     const endIcon = makeIcon('#e53935');
-    const pointIcon = (index) => L.divIcon({
+    const routePointIcon = L.divIcon({
       className: '',
-      html: '<div class="pin" style="background:#1565c0;color:white;font:800 13px system-ui">' + index + '</div>',
-      iconSize: [38,38],
-      iconAnchor: [19,19]
+      html: '<div class="route-point"></div>',
+      iconSize: [18,18],
+      iconAnchor: [9,9]
     });
 
     L.marker([data.location.lat, data.location.lng], { icon: locationIcon }).addTo(map).bindPopup('Hazard location');
     if (data.hazardType === 'Flood' && data.floodPoints.length) {
-      data.floodPoints.forEach((point, index) => L.marker([point.lat, point.lng], { icon: pointIcon(index + 1) }).addTo(map).bindPopup('Flood point ' + (index + 1)));
+      data.floodPoints.forEach((point) => L.marker([point.lat, point.lng], { icon: routePointIcon }).addTo(map).bindPopup('Flood street point'));
       if (data.floodPoints.length >= 2) {
         L.polyline(data.floodPoints.map((point) => [point.lat, point.lng]), {
           color: '#1565c0',
-          weight: 5,
+          weight: 6,
           opacity: .92
         }).addTo(map);
       }
@@ -123,7 +131,13 @@ const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, flo
     }
 
     map.on('click', (event) => {
-      post({ lat: event.latlng.lat, lng: event.latlng.lng, mode: data.pickMode });
+      const center = map.getCenter();
+      post({
+        lat: event.latlng.lat,
+        lng: event.latlng.lng,
+        mode: data.pickMode,
+        view: { lat: center.lat, lng: center.lng, zoom: map.getZoom() }
+      });
     });
   </script>
 </body>
@@ -138,6 +152,7 @@ const ReportScreen = () => {
   const [startLocation, setStartLocation] = useState(null);
   const [endLocation, setEndLocation] = useState(null);
   const [floodPoints, setFloodPoints] = useState([]);
+  const [mapView, setMapView] = useState({ latitude: MANILA.latitude, longitude: MANILA.longitude, zoom: 13 });
   const [pickMode, setPickMode] = useState("location");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null);
@@ -147,8 +162,8 @@ const ReportScreen = () => {
   const [mapExpanded, setMapExpanded] = useState(false);
   const isLineHazard = hazardType === "Flood" || hazardType === "Fault Line";
   const mapHtml = useMemo(
-    () => buildPickerHtml({ hazardType, location, startLocation, endLocation, floodPoints, pickMode }),
-    [endLocation, floodPoints, hazardType, location, pickMode, startLocation],
+    () => buildPickerHtml({ hazardType, location, startLocation, endLocation, floodPoints, pickMode, mapView }),
+    [endLocation, floodPoints, hazardType, location, mapView, pickMode, startLocation],
   );
 
   const hasRequiredReportDetails = useMemo(() => {
@@ -307,6 +322,9 @@ const ReportScreen = () => {
   const handleMapPress = (event) => {
     try {
       const payload = JSON.parse(event.nativeEvent.data);
+      if (payload.view) {
+        setMapView({ latitude: payload.view.lat, longitude: payload.view.lng, zoom: payload.view.zoom });
+      }
       setCoordinateForMode({ latitude: payload.lat, longitude: payload.lng }, payload.mode);
     } catch {
       Alert.alert("Map selection failed", "Please tap the map again.");

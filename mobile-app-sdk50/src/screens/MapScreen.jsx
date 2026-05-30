@@ -261,7 +261,6 @@ const buildMapHtml = ({ hazards, reports, evacuation }) => {
     };
     window.resetMap = () => map.setView([data.center.lat, data.center.lng], 13, { animate: true });
     window.locateUser = () => map.locate({ setView: true, maxZoom: 16 });
-    map.on('click', () => window.resetMap());
     map.on('locationfound', (e) => L.circleMarker(e.latlng, { radius: 8, color: '#0d2b6b', fillColor: '#2bb7ff', fillOpacity: .9 }).addTo(map).bindPopup('You are here').openPopup());
     map.on('locationerror', () => post({ title: 'Location unavailable', type: 'Location', severity: 'info', description: 'Allow location permission or inspect hazards manually.' }));
   </script>
