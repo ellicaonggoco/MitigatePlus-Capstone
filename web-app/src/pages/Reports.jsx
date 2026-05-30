@@ -14,6 +14,9 @@ import {
   ExclamationTriangleIcon,
   MapPinIcon,
   ArrowTopRightOnSquareIcon,
+  TrashIcon,
+  ArrowUturnLeftIcon,
+  PauseCircleIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 
@@ -25,6 +28,7 @@ const Reports = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [lastReportAction, setLastReportAction] = useState(null);
   const focusedReportId = searchParams.get("focus");
   const focusedReportRef = useRef(null);
 
@@ -49,6 +53,7 @@ const Reports = () => {
     });
 
     socket.on("new_report", fetchReports);
+    socket.on("report_deleted", fetchReports);
 
     return () => socket.disconnect();
   }, []);
@@ -76,6 +81,7 @@ const Reports = () => {
   };
 
   const handleValidate = async (reportId) => {
+    const currentReport = reports.find((report) => report._id === reportId);
     try {
       await api.patch(`/reports/${reportId}/status`, {
         status:
@@ -84,6 +90,11 @@ const Reports = () => {
             : "barangay_validated",
       });
       fetchReports();
+      setLastReportAction({
+        reportId,
+        previousStatus: currentReport?.status || "pending",
+        label: "Report approved",
+      });
       toast.success(
         user.role === "admin" || user.role === "superadmin"
           ? "Report approved"
@@ -95,18 +106,67 @@ const Reports = () => {
   };
 
   const handleReject = async (reportId) => {
+    const currentReport = reports.find((report) => report._id === reportId);
     try {
       await api.patch(`/reports/${reportId}/status`, { status: "rejected" });
       fetchReports();
+      setLastReportAction({
+        reportId,
+        previousStatus: currentReport?.status || "pending",
+        label: "Report rejected",
+      });
       toast.success("Report rejected");
     } catch (err) {
       toast.error(err.response?.data?.message || "Rejection failed");
     }
   };
 
+  const handleHold = async (reportId) => {
+    const currentReport = reports.find((report) => report._id === reportId);
+    try {
+      await api.patch(`/reports/${reportId}/status`, { status: "on_hold" });
+      fetchReports();
+      setLastReportAction({
+        reportId,
+        previousStatus: currentReport?.status || "pending",
+        label: "Report placed on hold",
+      });
+      toast.success("Report placed on hold");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not place report on hold");
+    }
+  };
+
+  const handleUndoLastAction = async () => {
+    if (!lastReportAction) return;
+    try {
+      await api.patch(`/reports/${lastReportAction.reportId}/status`, {
+        status: lastReportAction.previousStatus,
+      });
+      setLastReportAction(null);
+      fetchReports();
+      toast.success("Action undone");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Undo failed");
+    }
+  };
+
+  const handleDelete = async (reportId) => {
+    if (!window.confirm("Delete this report permanently?")) return;
+    try {
+      await api.delete(`/reports/${reportId}`);
+      if (lastReportAction?.reportId === reportId) setLastReportAction(null);
+      fetchReports();
+      toast.success("Report deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Delete failed");
+    }
+  };
+
   const filtered = reports.filter((r) => {
     if (filterType !== "all" && r.type !== filterType) return false;
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterStatus === "all" && ["validated", "rejected", "on_hold"].includes(r.status)) return false;
     if (
       searchTerm &&
       !r.type.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -117,7 +177,7 @@ const Reports = () => {
   });
 
   const emergencyReports = reports.filter(
-    (r) => r.isEmergency && !["validated", "rejected"].includes(r.status),
+    (r) => r.isEmergency && !["validated", "rejected", "on_hold"].includes(r.status),
   );
 
   const sortedFiltered = [...filtered].sort((a, b) => {
@@ -146,7 +206,7 @@ const Reports = () => {
     return (
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 ml-64">
+        <div className="app-main">
           <Navbar />
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -158,7 +218,7 @@ const Reports = () => {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="flex-1 ml-64">
+      <div className="app-main">
         <Navbar />
         <div className="p-8 space-y-6">
           <motion.div
@@ -228,6 +288,21 @@ const Reports = () => {
             </motion.div>
           )}
 
+          {lastReportAction && (
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-blue-50/90 px-5 py-4 text-sm text-navy-800">
+              <span className="font-semibold">
+                {lastReportAction.label}. It was removed from the active list.
+              </span>
+              <button
+                onClick={handleUndoLastAction}
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-bold text-primary-700 shadow-sm hover:bg-primary-50"
+              >
+                <ArrowUturnLeftIcon className="h-4 w-4" />
+                Undo
+              </button>
+            </div>
+          )}
+
           {/* Filters */}
           <div className="flex items-center space-x-4">
             <div className="relative flex-1">
@@ -265,10 +340,11 @@ const Reports = () => {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="glass-input py-3"
             >
-              <option value="all">All Status</option>
+              <option value="all">All Active</option>
               <option value="pending">Pending</option>
               <option value="barangay_validated">Barangay Validated</option>
               <option value="validated">Validated</option>
+              <option value="on_hold">On Hold</option>
               <option value="rejected">Rejected</option>
             </select>
           </div>
@@ -332,7 +408,9 @@ const Reports = () => {
                                   ? "bg-yellow-100 text-yellow-700"
                                   : r.status === "barangay_validated"
                                     ? "bg-blue-100 text-blue-700"
-                                    : "bg-red-100 text-red-700"
+                                    : r.status === "on_hold"
+                                      ? "bg-slate-100 text-slate-700"
+                                      : "bg-red-100 text-red-700"
                             }`}
                           >
                             {r.status?.replace("_", " ").toUpperCase()}
@@ -439,6 +517,17 @@ const Reports = () => {
                               <span>Approve</span>
                             </motion.button>
                           )}
+                          {r.status !== "on_hold" && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleHold(r._id)}
+                              className="px-4 py-2 bg-slate-500 text-white rounded-xl text-sm font-semibold flex items-center space-x-1"
+                            >
+                              <PauseCircleIcon className="w-4 h-4" />
+                              <span>On hold</span>
+                            </motion.button>
+                          )}
                           {r.status !== "rejected" && (
                             <motion.button
                               whileHover={{ scale: 1.05 }}
@@ -450,6 +539,15 @@ const Reports = () => {
                               <span>Reject</span>
                             </motion.button>
                           )}
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleDelete(r._id)}
+                            className="px-4 py-2 bg-red-700 text-white rounded-xl text-sm font-semibold flex items-center space-x-1"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                            <span>Delete</span>
+                          </motion.button>
                         </>
                       ) : null}
                     </div>

@@ -500,10 +500,15 @@ router.patch("/:id/status", protect, async (req, res) => {
 
     // ==================== ADMIN / SUPERAD ====================
     if (req.user.role === "admin" || req.user.role === "superadmin") {
-      if (status === "validated" || status === "rejected") {
+      if (["validated", "rejected", "on_hold", "pending", "barangay_validated"].includes(status)) {
         report.status = status;
         report.adminNote = note || "";
-        report.adminValidatedBy = req.user._id;
+        if (status === "pending" || status === "barangay_validated") {
+          report.adminValidatedBy = null;
+          report.adminNote = "";
+        } else {
+          report.adminValidatedBy = req.user._id;
+        }
       } else {
         return res.status(400).json({
           success: false,
@@ -575,6 +580,11 @@ router.delete(
         action: "REPORT_DELETED",
         details: `Deleted report for ${report.type}`,
         ipAddress: req.ip,
+      });
+
+      req.app.get("io").emit("report_deleted", {
+        reportId: report._id,
+        type: report.type,
       });
 
       res.json({

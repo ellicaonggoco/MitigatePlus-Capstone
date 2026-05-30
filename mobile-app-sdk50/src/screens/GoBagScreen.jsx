@@ -97,7 +97,7 @@ const GoBagScreen = () => {
         </View>
 
         <View style={styles.familyCard}>
-          <View>
+          <View style={styles.familyCopy}>
             <Text style={styles.familyTitle}>Household calculator</Text>
             <Text style={styles.familyText}>{waterLiters}L water and {readyMeals} ready-to-eat meals for 72 hours.</Text>
           </View>
@@ -162,10 +162,11 @@ const styles = StyleSheet.create({
   checkAllText: { color: colors.navy, fontFamily: fonts.bold, fontSize: 11 },
   progressTrack: { height: 12, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)", marginTop: 16, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 999, backgroundColor: colors.lightBlue },
-  familyCard: { backgroundColor: "#fff", borderRadius: 22, padding: 16, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, ...shadow.card },
+  familyCard: { backgroundColor: "#fff", borderRadius: 22, padding: 16, marginBottom: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", ...shadow.card },
+  familyCopy: { flex: 1, minWidth: 180 },
   familyTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 15 },
-  familyText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 3, maxWidth: 210 },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 8 },
+  familyText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  stepper: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   stepBtn: { width: 34, height: 34, borderRadius: 13, backgroundColor: "#e8f3ff", alignItems: "center", justifyContent: "center" },
   household: { color: colors.text, fontFamily: fonts.extraBold, fontSize: 18, minWidth: 22, textAlign: "center" },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 14 },

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   BellIcon,
-  MagnifyingGlassIcon,
   MapPinIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
@@ -12,15 +11,29 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "../services/api";
 import { io } from "socket.io-client";
 
+const Avatar = ({ user, className = "w-10 h-10 rounded-2xl" }) => {
+  if (user?.profilePictureUrl) {
+    return (
+      <img
+        src={user.profilePictureUrl}
+        alt={user?.name || "Profile"}
+        className={`${className} object-cover shadow-lg shadow-primary-500/20 border border-white/70`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${className} bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-lg shadow-primary-500/20`}>
+      <span className="text-white font-bold text-sm">
+        {user?.name?.charAt(0)?.toUpperCase()}
+      </span>
+    </div>
+  );
+};
+
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
-  // ---------- Search state ----------
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const searchRef = useRef(null);
 
   // ---------- Notification state ----------
   const [notifications, setNotifications] = useState([]);
@@ -31,89 +44,6 @@ const Navbar = () => {
   // ---------- Profile dropdown ----------
   const [showProfile, setShowProfile] = useState(false);
   const profileRef = useRef(null);
-
-  // ----- Fetch all data for searching (reports, hazard zones, evacuation centers) -----
-  const searchAll = async (term) => {
-    if (!term || term.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    try {
-      const [reportsRes, hazardsRes, evacRes] = await Promise.all([
-        api.get("/reports"),
-        api.get("/hazards"),
-        api.get("/evacuation"),
-      ]);
-      const reports = reportsRes.data.data || [];
-      const hazards = hazardsRes.data.data || [];
-      const evacs = evacRes.data.data || [];
-
-      const results = [];
-
-      reports.forEach((r) => {
-        if (
-          r.type.toLowerCase().includes(term.toLowerCase()) ||
-          (r.description &&
-            r.description.toLowerCase().includes(term.toLowerCase())) ||
-          r.barangay.toLowerCase().includes(term.toLowerCase())
-        ) {
-          results.push({
-            id: r._id,
-            type: "Report",
-            label: `${r.type}: ${r.description || r.barangay}`,
-            coords: r.location,
-            subtype: r.type,
-            severity: r.severity,
-          });
-        }
-      });
-
-      hazards.forEach((z) => {
-        if (
-          z.name.toLowerCase().includes(term.toLowerCase()) ||
-          (z.description &&
-            z.description.toLowerCase().includes(term.toLowerCase()))
-        ) {
-          results.push({
-            id: z._id,
-            type: "Hazard Zone",
-            label: z.name,
-            coords: z.coordinates[0],
-            subtype: z.type,
-            severity: z.riskLevel,
-          });
-        }
-      });
-
-      evacs.forEach((c) => {
-        if (
-          c.name.toLowerCase().includes(term.toLowerCase()) ||
-          (c.address && c.address.toLowerCase().includes(term.toLowerCase()))
-        ) {
-          results.push({
-            id: c._id,
-            type: "Evacuation Center",
-            label: c.name,
-            coords: c.location,
-            subtype: "evacuation",
-          });
-        }
-      });
-
-      setSearchResults(results.slice(0, 10));
-    } catch (err) {
-      console.error("Search error:", err);
-    }
-  };
-
-  // Debounce search input
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      searchAll(searchTerm);
-      if (searchTerm.length >= 2) setShowSearchResults(true);
-    }, 300);
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm]);
 
   // ----- Socket listener for notifications -----
   useEffect(() => {
@@ -205,9 +135,6 @@ const Navbar = () => {
   // ----- Close dropdowns on outside click -----
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
-        setShowSearchResults(false);
-      }
       if (notifyRef.current && !notifyRef.current.contains(e.target)) {
         setShowNotifications(false);
       }
@@ -218,17 +145,6 @@ const Navbar = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // ----- Navigate to map with selected item -----
-  const goToItem = (item) => {
-    if (item.coords) {
-      // Store selected item in localStorage for HazardManagement to read
-      localStorage.setItem("selectedMapItem", JSON.stringify(item));
-      navigate("/hazards");
-    }
-    setShowSearchResults(false);
-    setSearchTerm("");
-  };
 
   const goToNotification = (notification) => {
     setShowNotifications(false);
@@ -267,65 +183,8 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Right: Search + Notifications + Profile */}
+          {/* Right: Notifications + Profile */}
           <div className="flex items-center space-x-4">
-            {/* ----- SEARCH BAR (functional) ----- */}
-            <div ref={searchRef} className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-navy-400" />
-              <input
-                type="text"
-                placeholder="Search hazards, reports..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => {
-                  if (searchResults.length > 0) setShowSearchResults(true);
-                }}
-                className="pl-10 pr-4 py-2.5 rounded-2xl glass-input text-sm w-64 focus:w-80 transition-all duration-300"
-              />
-              {/* Search Results Dropdown */}
-              <AnimatePresence>
-                {showSearchResults && searchResults.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="absolute top-full mt-2 right-0 w-80 glass-card p-2 max-h-64 overflow-y-auto z-50"
-                  >
-                    {searchResults.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => goToItem(item)}
-                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/50 transition-colors flex items-center space-x-3"
-                      >
-                        <span>
-                          {item.type === "Report"
-                            ? "📋"
-                            : item.type === "Hazard Zone"
-                              ? "⚠️"
-                              : "🏥"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-navy-700 truncate">
-                            {item.label}
-                          </p>
-                          <p className="text-xs text-navy-400">
-                            {item.type} {item.subtype && `· ${item.subtype}`}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              {showSearchResults &&
-                searchTerm.length >= 2 &&
-                searchResults.length === 0 && (
-                  <div className="absolute top-full mt-2 right-0 w-80 glass-card p-4 text-center text-sm text-navy-500 z-50">
-                    No results found
-                  </div>
-                )}
-            </div>
-
             {/* ----- NOTIFICATIONS (functional) ----- */}
             <div ref={notifyRef} className="relative">
               <motion.button
@@ -388,11 +247,9 @@ const Navbar = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 onClick={() => setShowProfile(!showProfile)}
-                className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-lg shadow-primary-500/20"
+                className="block"
               >
-                <span className="text-white font-bold text-sm">
-                  {user?.name?.charAt(0)?.toUpperCase()}
-                </span>
+                <Avatar user={user} />
               </motion.button>
 
               {/* Profile Dropdown */}
@@ -405,11 +262,7 @@ const Navbar = () => {
                     className="absolute top-full mt-2 right-0 w-56 glass-card p-3 z-50"
                   >
                     <div className="flex items-center space-x-3 mb-3 pb-3 border-b border-white/20">
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-400 to-navy-700 flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold text-sm">
-                          {user?.name?.charAt(0)?.toUpperCase()}
-                        </span>
-                      </div>
+                      <Avatar user={user} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-navy-900 truncate">
                           {user?.name}

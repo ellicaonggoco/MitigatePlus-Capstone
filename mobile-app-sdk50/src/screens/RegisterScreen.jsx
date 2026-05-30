@@ -20,6 +20,24 @@ import { LinearGradient } from "expo-linear-gradient";
 import api from "../services/api";
 import { colors, fonts, shadow } from "../theme";
 
+const getRegistrationErrorMessage = (err) => {
+  const message = err.response?.data?.message || err.message || "";
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    lowerMessage.includes("resend") ||
+    lowerMessage.includes("email api") ||
+    lowerMessage.includes("email_from") ||
+    lowerMessage.includes("email_user") ||
+    lowerMessage.includes("email_pass") ||
+    lowerMessage.includes("smtp")
+  ) {
+    return "We could not send your OTP email right now. Please try again later or contact MitigatePlus support.";
+  }
+
+  return message || "Please try again.";
+};
+
 const RegisterScreen = ({ navigation }) => {
   const { height } = useWindowDimensions();
   const compact = height < 740;
@@ -48,12 +66,25 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const handleRegister = async () => {
-    if (!form.name || !form.email || !form.phone || !form.address || !form.password || !form.confirmPassword || !form.barangay) {
-      Alert.alert("Missing details", "Please complete all required fields.");
+    const requiredFields = [
+      ["name", "Full Name"],
+      ["email", "Email Address"],
+      ["phone", "Mobile Number"],
+      ["barangay", "Barangay"],
+      ["address", "Complete Address"],
+      ["password", "Password"],
+      ["confirmPassword", "Confirm Password"],
+    ];
+    const missingFields = requiredFields
+      .filter(([key]) => !String(form[key] || "").trim())
+      .map(([, label]) => label);
+
+    if (missingFields.length) {
+      Alert.alert("Missing details", `Please provide: ${missingFields.join(", ")}.`);
       return;
     }
     if (form.password.length < 6) {
-      Alert.alert("Weak password", "Use at least 6 characters.");
+      Alert.alert("Weak password", "Password must be at least 6 characters. Recommended: 8 or more characters with a number.");
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -92,7 +123,7 @@ const RegisterScreen = ({ navigation }) => {
     } catch (err) {
       Alert.alert(
         "Registration failed",
-        err.response?.data?.message || err.message || "Please try again.",
+        getRegistrationErrorMessage(err),
       );
     } finally {
       setLoading(false);
@@ -131,6 +162,7 @@ const RegisterScreen = ({ navigation }) => {
             show={showPassword}
             onToggle={() => setShowPassword((value) => !value)}
           />
+          <Text style={styles.passwordHint}>Minimum 6 characters. Recommended: 8+ characters with a number.</Text>
           <PasswordInput
             placeholder="Confirm Password"
             value={form.confirmPassword}
@@ -247,6 +279,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   input: { flex: 1, fontFamily: fonts.semiBold, color: colors.navyDark, fontSize: 14, paddingHorizontal: 11, minWidth: 0 },
+  passwordHint: { color: colors.muted, fontFamily: fonts.medium, fontSize: 11, lineHeight: 16, marginTop: -4, marginBottom: 10, paddingHorizontal: 4 },
   toggle: {
     borderWidth: 1,
     borderColor: "#d9e8ff",

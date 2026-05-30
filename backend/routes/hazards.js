@@ -178,6 +178,11 @@ router.delete(
         ipAddress: req.ip,
       });
 
+      req.app.get("io").emit("hazard_zone_deleted", {
+        zoneId: hazard._id,
+        name: hazard.name,
+      });
+
       res.json({
         success: true,
         message: "Hazard zone deleted successfully",

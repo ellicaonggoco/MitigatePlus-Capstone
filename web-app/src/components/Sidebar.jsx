@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -21,6 +21,13 @@ const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   const logoUrl = `${process.env.PUBLIC_URL}/mitigateplusonly.png`;
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-width",
+      collapsed ? "80px" : "280px",
+    );
+  }, [collapsed]);
 
   const allMenuItems = [
     {

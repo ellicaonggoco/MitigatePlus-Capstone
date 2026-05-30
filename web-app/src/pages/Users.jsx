@@ -16,6 +16,7 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   HomeIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 
 const Users = () => {
@@ -38,6 +39,7 @@ const Users = () => {
     phone: "",
     address: "",
   });
+  const currentUserId = user?.id || user?._id;
 
   useEffect(() => {
     fetchUsers();
@@ -65,6 +67,21 @@ const Users = () => {
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || "Could not update account");
+    }
+  };
+
+  const handleDeleteUser = async (targetUser) => {
+    if (!window.confirm(`Delete ${targetUser.name}'s account permanently?`)) return;
+    try {
+      await api.delete(`/auth/users/${targetUser._id}`);
+      toast.success("Account deleted");
+      fetchUsers();
+      if (selectedUser?._id === targetUser._id) {
+        setSelectedUser(null);
+        setShowModal(false);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not delete account");
     }
   };
 
@@ -143,7 +160,7 @@ const Users = () => {
     return (
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 ml-64">
+        <div className="app-main">
           <Navbar />
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -155,7 +172,7 @@ const Users = () => {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="flex-1 ml-64">
+      <div className="app-main">
         <Navbar />
         <div className="p-8 space-y-6">
           <motion.div
@@ -334,13 +351,22 @@ const Users = () => {
                           )}
                           {(user?.role === "superadmin" ||
                             !["admin", "superadmin"].includes(u.role)) &&
-                            u._id !== user?.id &&
+                            u._id !== currentUserId &&
                             u.status !== "suspended" && (
                             <button
                               onClick={() => handleStatus(u._id, "suspended")}
                               className="p-2 rounded-xl hover:bg-red-50"
                             >
                               <XCircleIcon className="w-5 h-5 text-red-600" />
+                            </button>
+                          )}
+                          {user?.role === "superadmin" && u._id !== currentUserId && (
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              className="p-2 rounded-xl hover:bg-red-50"
+                              title="Delete account"
+                            >
+                              <TrashIcon className="w-5 h-5 text-red-700" />
                             </button>
                           )}
                         </div>

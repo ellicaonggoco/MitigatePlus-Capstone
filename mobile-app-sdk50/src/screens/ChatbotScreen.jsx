@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import Header from "../components/Header";
 import ScreenShell from "../components/ScreenShell";
 import api from "../services/api";
@@ -24,16 +26,63 @@ const quickChips = [
   "Kailan dapat gamitin ang Emergency Ping?",
 ];
 
+const CHAT_STORAGE_KEY = "mitigo_chat_messages";
+const initialMessages = [
+  {
+    role: "bot",
+    text: "Hi, I'm MitiGo. Ask me about disaster safety, go bags, hazard reports, or Manila emergency preparedness.",
+  },
+];
+
 const ChatbotScreen = ({ navigation }) => {
-  const [messages, setMessages] = useState([
-    {
-      role: "bot",
-      text: "Hi, I'm MitiGo. Ask me about disaster safety, go bags, hazard reports, or Manila emergency preparedness.",
-    },
-  ]);
+  const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const loadSavedChat = async () => {
+      try {
+        const saved = await SecureStore.getItemAsync(CHAT_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length) setMessages(parsed);
+        }
+      } catch {
+        setMessages(initialMessages);
+      } finally {
+        setHydrated(true);
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 80);
+      }
+    };
+
+    loadSavedChat();
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    SecureStore.setItemAsync(CHAT_STORAGE_KEY, JSON.stringify(messages)).catch(() => {});
+  }, [hydrated, messages]);
+
+  const startNewChat = () => {
+    Alert.alert(
+      "Start new chat?",
+      "This will delete the saved MitiGo conversation on this device.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete and start new",
+          style: "destructive",
+          onPress: async () => {
+            await SecureStore.deleteItemAsync(CHAT_STORAGE_KEY).catch(() => {});
+            setMessages(initialMessages);
+            setInput("");
+          },
+        },
+      ],
+    );
+  };
 
   const sendMessage = async (preset) => {
     const text = (preset || input).trim();
@@ -61,7 +110,7 @@ const ChatbotScreen = ({ navigation }) => {
 
   return (
     <ScreenShell padded={false}>
-      <Header title="MitiGo" subtitle="Disaster safety assistant" onBack={() => navigation.goBack()} rightIcon="sparkles-outline" />
+      <Header title="MitiGo" subtitle="Disaster safety assistant" onBack={() => navigation.goBack()} rightIcon="add-circle-outline" onRightPress={startNewChat} />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboard}>
         <ScrollView ref={scrollRef} style={styles.chatArea} contentContainerStyle={styles.chatContent}>
           <View style={styles.chipRow}>

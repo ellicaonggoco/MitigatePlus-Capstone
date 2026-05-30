@@ -182,6 +182,11 @@ router.delete(
         ipAddress: req.ip,
       });
 
+      req.app.get("io").emit("evacuation_deleted", {
+        centerId: center._id,
+        name: center.name,
+      });
+
       res.json({
         success: true,
         message: "Evacuation center deleted successfully",

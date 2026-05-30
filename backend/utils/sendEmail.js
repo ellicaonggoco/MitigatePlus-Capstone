@@ -34,8 +34,7 @@ const sendEmail = async (options) => {
         message: error.message,
       });
       error.publicMessage =
-        error.response?.data?.message ||
-        "Email API failed. Check RESEND_API_KEY and EMAIL_FROM in Render.";
+        "We could not send the OTP email right now. Please try again in a few minutes.";
       throw error;
     }
   }
@@ -76,14 +75,14 @@ const sendEmail = async (options) => {
 
     if (error.code === "EAUTH" || error.responseCode === 535) {
       error.publicMessage =
-        "Gmail rejected EMAIL_USER or EMAIL_PASS. Use the same Gmail account that generated the App Password.";
+        "We could not send the OTP email right now. Please try again in a few minutes.";
     } else if (
       error.code === "ETIMEDOUT" ||
       error.code === "ESOCKET" ||
       error.code === "ECONNECTION"
     ) {
       error.publicMessage =
-        "Email service timed out. Please redeploy and try again, or check Gmail SMTP access.";
+        "The OTP email service timed out. Please try again in a few minutes.";
     }
 
     throw error;

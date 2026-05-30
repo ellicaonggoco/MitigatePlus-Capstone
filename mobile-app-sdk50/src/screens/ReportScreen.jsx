@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
@@ -143,6 +144,7 @@ const ReportScreen = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
   const [pendingEmergency, setPendingEmergency] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(false);
   const isLineHazard = hazardType === "Flood" || hazardType === "Fault Line";
   const mapHtml = useMemo(
     () => buildPickerHtml({ hazardType, location, startLocation, endLocation, floodPoints, pickMode }),
@@ -282,6 +284,26 @@ const ReportScreen = () => {
     );
   };
 
+  const confirmEmergencyPing = () => {
+    Alert.alert(
+      "Emergency ping precaution",
+      "Send this only for real, active danger. Officials will receive a high-priority alert with your location, and false reports may lead to penalties.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Send emergency ping",
+          style: "destructive",
+          onPress: () => {
+            setIsEmergency(true);
+            setSeverity("high");
+            setPendingEmergency(false);
+            submitReport(true, true);
+          },
+        },
+      ],
+    );
+  };
+
   const handleMapPress = (event) => {
     try {
       const payload = JSON.parse(event.nativeEvent.data);
@@ -325,12 +347,7 @@ const ReportScreen = () => {
             <Text style={styles.confirmPingText}>Confirm this is an active {hazardType} emergency.</Text>
             <TouchableOpacity
               style={styles.confirmPingBtn}
-              onPress={() => {
-                setIsEmergency(true);
-                setSeverity("high");
-                setPendingEmergency(false);
-                submitReport(true, true);
-              }}
+              onPress={confirmEmergencyPing}
             >
               <Text style={styles.confirmPingBtnText}>Confirm Ping</Text>
             </TouchableOpacity>
@@ -376,6 +393,10 @@ const ReportScreen = () => {
         </View>
 
         <Text style={styles.sectionTitle}>Location</Text>
+        <TouchableOpacity style={styles.expandMapBtn} onPress={() => setMapExpanded(true)}>
+          <Ionicons name="expand" size={18} color="#fff" />
+          <Text style={styles.expandMapText}>Open full map picker</Text>
+        </TouchableOpacity>
         <View style={styles.locationActions}>
           <TouchableOpacity style={styles.locationBtn} onPress={locateMe}>
             <Ionicons name="locate" size={18} color={colors.blue} />
@@ -435,6 +456,64 @@ const ReportScreen = () => {
             onMessage={handleMapPress}
           />
         </View>
+        <Modal visible={mapExpanded} animationType="slide" onRequestClose={() => setMapExpanded(false)}>
+          <View style={styles.fullMapRoot}>
+            <View style={styles.fullMapHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fullMapTitle}>Pick {hazardType} location</Text>
+                <Text style={styles.fullMapSubtitle}>
+                  {hazardType === "Flood"
+                    ? "Add at least 2 street points in order."
+                    : isLineHazard
+                      ? "Set start and end points on the map."
+                      : "Tap the exact hazard location."}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.fullMapClose} onPress={() => setMapExpanded(false)}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.fullMapActions}>
+              <TouchableOpacity style={[styles.fullMapChip, pickMode === "location" && styles.fullMapChipActive]} onPress={() => setPickMode("location")}>
+                <Ionicons name="pin" size={16} color={pickMode === "location" ? "#fff" : colors.blue} />
+                <Text style={[styles.fullMapChipText, pickMode === "location" && styles.fullMapChipTextActive]}>Location</Text>
+              </TouchableOpacity>
+              {hazardType === "Flood" ? (
+                <TouchableOpacity style={[styles.fullMapChip, pickMode === "floodPoint" && styles.fullMapChipActive]} onPress={() => setPickMode("floodPoint")}>
+                  <Ionicons name="add-circle" size={16} color={pickMode === "floodPoint" ? "#fff" : colors.blue} />
+                  <Text style={[styles.fullMapChipText, pickMode === "floodPoint" && styles.fullMapChipTextActive]}>Flood point</Text>
+                </TouchableOpacity>
+              ) : isLineHazard ? (
+                <>
+                  <TouchableOpacity style={[styles.fullMapChip, pickMode === "start" && styles.fullMapChipActive]} onPress={() => setPickMode("start")}>
+                    <Text style={[styles.fullMapChipText, pickMode === "start" && styles.fullMapChipTextActive]}>Start</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.fullMapChip, pickMode === "end" && styles.fullMapChipActive]} onPress={() => setPickMode("end")}>
+                    <Text style={[styles.fullMapChipText, pickMode === "end" && styles.fullMapChipTextActive]}>End</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
+            </View>
+            <WebView
+              originWhitelist={["*"]}
+              source={{ html: mapHtml, baseUrl: "https://localhost" }}
+              style={styles.fullWebMap}
+              javaScriptEnabled
+              domStorageEnabled
+              mixedContentMode="always"
+              onMessage={handleMapPress}
+            />
+            <View style={styles.fullMapFooter}>
+              <Text style={styles.fullMapFooterText}>
+                Selected: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+                {hazardType === "Flood" ? ` - points ${floodPoints.length}` : ""}
+              </Text>
+              <TouchableOpacity style={styles.fullMapDone} onPress={() => setMapExpanded(false)}>
+                <Text style={styles.fullMapDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
         <View style={styles.locationSummary}>
           <Text style={styles.locationSummaryText}>
             Selected: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
@@ -496,6 +575,8 @@ const styles = StyleSheet.create({
   confirmPingBtn: { backgroundColor: colors.red, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
   confirmPingBtnText: { color: "#fff", fontFamily: fonts.bold, fontSize: 11 },
   sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.text, marginTop: 16, marginBottom: 10 },
+  expandMapBtn: { minHeight: 46, borderRadius: 16, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, marginBottom: 10, ...shadow.button },
+  expandMapText: { color: "#fff", fontFamily: fonts.bold, fontSize: 13 },
   typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   typeCard: { width: "31.5%", minHeight: 104, backgroundColor: colors.surface, borderRadius: 20, padding: 10, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, ...shadow.soft },
   selectedCard: { borderColor: colors.blue, backgroundColor: "#f4fbff" },
@@ -516,6 +597,21 @@ const styles = StyleSheet.create({
   clearPointsText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 12 },
   map: { width: "100%", height: 250, borderRadius: 18, overflow: "hidden", backgroundColor: "#e8edf3", borderWidth: 1, borderColor: colors.border },
   webMap: { flex: 1, backgroundColor: "#e8edf3" },
+  fullMapRoot: { flex: 1, backgroundColor: "#e8edf3" },
+  fullMapHeader: { paddingTop: 48, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderColor: colors.border },
+  fullMapTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 18 },
+  fullMapSubtitle: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  fullMapClose: { width: 42, height: 42, borderRadius: 16, backgroundColor: "#eef7ff", alignItems: "center", justifyContent: "center" },
+  fullMapActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 12, backgroundColor: "#fff", borderBottomWidth: 1, borderColor: colors.border },
+  fullMapChip: { minHeight: 38, borderRadius: 999, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#eef7ff", borderWidth: 1, borderColor: colors.border },
+  fullMapChipActive: { backgroundColor: colors.blue, borderColor: colors.blue },
+  fullMapChipText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 12 },
+  fullMapChipTextActive: { color: "#fff" },
+  fullWebMap: { flex: 1, backgroundColor: "#e8edf3" },
+  fullMapFooter: { padding: 12, backgroundColor: "#fff", borderTopWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 10 },
+  fullMapFooterText: { flex: 1, color: colors.muted, fontFamily: fonts.medium, fontSize: 11 },
+  fullMapDone: { borderRadius: 14, backgroundColor: colors.navy, paddingHorizontal: 18, paddingVertical: 11 },
+  fullMapDoneText: { color: "#fff", fontFamily: fonts.bold, fontSize: 13 },
   locationSummary: { backgroundColor: "#fff", borderRadius: 16, padding: 12, marginTop: 8, borderWidth: 1, borderColor: colors.border },
   locationSummaryText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 11, lineHeight: 17 },
   mapHint: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 8 },

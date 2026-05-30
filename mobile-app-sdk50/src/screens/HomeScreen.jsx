@@ -142,6 +142,7 @@ const HomeScreen = ({ navigation }) => {
             { icon: "add-circle", color: colors.coral, bg: "#fff0e9", label: "Submit Report", route: "Report" },
             { icon: "analytics", color: colors.lavender, bg: "#f0edff", label: "Assessment", route: "Assessment" },
             { icon: "briefcase", color: colors.aqua, bg: "#e4fbf6", label: "Go Bag", route: "GoBag" },
+            { icon: "chatbubble-ellipses", color: colors.green, bg: "#ecfdf5", label: "MitiGo AI", route: "Chatbot" },
           ].map((item) => (
             <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => navigation.navigate(item.route)}>
               <View style={[styles.actionIcon, { backgroundColor: item.bg }]}>

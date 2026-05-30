@@ -954,8 +954,11 @@ const HazardManagement = () => {
     );
     socket.on("new_report", fetchData);
     socket.on("report_validated", fetchData);
+    socket.on("report_deleted", fetchData);
     socket.on("new_hazard_zone", fetchData);
+    socket.on("hazard_zone_deleted", fetchData);
     socket.on("new_evacuation", fetchData);
+    socket.on("evacuation_deleted", fetchData);
     return () => socket.disconnect();
   }, [fetchData]);
 
@@ -1035,6 +1038,9 @@ const HazardManagement = () => {
     isValidCoord(r.location?.lat, r.location?.lng),
   );
   const safeMapReports = safeReports.filter((r) => r.status === "validated");
+  const activeListReports = safeReports.filter(
+    (r) => !["validated", "rejected", "on_hold"].includes(r.status),
+  );
   const safeHazardZones = hazardZones.filter(
     (z) =>
       z.coordinates?.length > 0 &&
@@ -1087,7 +1093,7 @@ const HazardManagement = () => {
     return (
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 ml-64">
+        <div className="app-main">
           <Navbar />
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -1099,7 +1105,7 @@ const HazardManagement = () => {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="flex-1 ml-64">
+      <div className="app-main">
         <Navbar />
         <div className="p-8 space-y-6">
           {pickMode && (
@@ -1129,9 +1135,6 @@ const HazardManagement = () => {
               <h1 className="text-3xl font-bold gradient-text">
                 Hazard Management
               </h1>
-              <p className="text-navy-500 mt-1">
-                Flood / Fault Line: click multiple points for precise lines
-              </p>
             </div>
             <div className="flex space-x-3">
               <motion.button
@@ -1515,7 +1518,7 @@ const HazardManagement = () => {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-3"
             >
-              {safeReports.map((r, i) => (
+              {activeListReports.map((r, i) => (
                 <motion.div
                   key={r._id}
                   initial={{ opacity: 0, y: 20 }}

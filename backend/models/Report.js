@@ -59,7 +59,7 @@ const reportSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "barangay_validated", "validated", "rejected"],
+    enum: ["pending", "barangay_validated", "validated", "rejected", "on_hold"],
     default: "pending",
   },
   isEmergency: {

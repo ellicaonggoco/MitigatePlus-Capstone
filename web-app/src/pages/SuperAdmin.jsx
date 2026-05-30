@@ -47,7 +47,7 @@ const SuperAdmin = () => {
     return (
       <div className="flex">
         <Sidebar />
-        <div className="flex-1 ml-64">
+        <div className="app-main">
           <Navbar />
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -59,7 +59,7 @@ const SuperAdmin = () => {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="flex-1 ml-64">
+      <div className="app-main">
         <Navbar />
         <div className="p-8 space-y-8">
           <motion.div

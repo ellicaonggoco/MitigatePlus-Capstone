@@ -42,7 +42,7 @@ const Dashboard = () => {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  if (loading) return <div className="flex"><Sidebar/><div className="flex-1 ml-64"><Navbar/><div className="flex items-center justify-center h-96"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div></div></div></div>;
+  if (loading) return <div className="flex"><Sidebar/><div className="app-main"><Navbar/><div className="flex items-center justify-center h-96"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div></div></div></div>;
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -4 }} className="glass-card p-6 relative overflow-hidden">
@@ -57,7 +57,7 @@ const Dashboard = () => {
   return (
     <div className="flex">
       <Sidebar />
-      <div className="flex-1 ml-64">
+      <div className="app-main">
         <Navbar />
         <div className="p-8 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -12,7 +12,7 @@ import {
 const About = () => (
   <div className="flex">
     <Sidebar />
-    <div className="flex-1 ml-64 pointer-events-none">
+    <div className="app-main pointer-events-none">
       <Navbar />
       <div className="p-8 space-y-8 pointer-events-auto">
         <motion.div

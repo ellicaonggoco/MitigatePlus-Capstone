@@ -69,6 +69,28 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
     const { name, password, phone, address, barangay, isBarangayOfficial } = req.body;
     const email = normalizeEmail(req.body.email);
     const officialRequested = isBarangayOfficial === "true";
+    const missingFields = [];
+
+    if (!name?.trim()) missingFields.push("name");
+    if (!email) missingFields.push("email");
+    if (!phone?.trim()) missingFields.push("mobile number");
+    if (!barangay?.trim()) missingFields.push("barangay");
+    if (!address?.trim()) missingFields.push("complete address");
+    if (!password) missingFields.push("password");
+
+    if (missingFields.length) {
+      return res.status(400).json({
+        success: false,
+        message: `Please provide: ${missingFields.join(", ")}`,
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
 
     // Check if user exists
     const userExists = await User.findOne({ email });
@@ -835,6 +857,55 @@ router.patch(
       res.status(500).json({
         success: false,
         message: "Server error updating user status",
+      });
+    }
+  },
+);
+
+// @desc    Delete a user account
+// @route   DELETE /api/auth/users/:id
+router.delete(
+  "/users/:id",
+  protect,
+  authorize("superadmin"),
+  async (req, res) => {
+    try {
+      const targetUser = await User.findById(req.params.id);
+
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      if (targetUser._id.equals(req.user._id)) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot delete your own account",
+        });
+      }
+
+      await targetUser.deleteOne();
+
+      await ActivityLog.create({
+        userId: req.user._id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        action: "USER_DELETED",
+        details: `Deleted user account ${targetUser.email}`,
+        ipAddress: req.ip,
+      });
+
+      res.json({
+        success: true,
+        message: "User account deleted",
+      });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error deleting user",
       });
     }
   },
