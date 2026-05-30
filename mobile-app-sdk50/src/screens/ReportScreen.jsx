@@ -206,6 +206,23 @@ const ReportScreen = () => {
     else setLocation(coordinate);
   };
 
+  const undoFloodPoint = () => {
+    setFloodPoints((prev) => {
+      const next = prev.slice(0, -1);
+      setStartLocation(next[0] || null);
+      setEndLocation(next[next.length - 1] || null);
+      setLocation(next[0] || MANILA);
+      return next;
+    });
+  };
+
+  const clearFloodPoints = () => {
+    setFloodPoints([]);
+    setStartLocation(null);
+    setEndLocation(null);
+    setLocation(MANILA);
+  };
+
   const locateMe = async () => {
     try {
       const servicesEnabled = await Location.hasServicesEnabledAsync();
@@ -432,22 +449,16 @@ const ReportScreen = () => {
                 <Ionicons name="add-circle" size={18} color={colors.blue} />
                 <Text style={styles.locationBtnText}>Add flood point</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.locationBtn} onPress={() => setFloodPoints((prev) => {
-                const next = prev.slice(0, -1);
-                setStartLocation(next[0] || null);
-                setEndLocation(next[next.length - 1] || null);
-                if (next[0]) setLocation(next[0]);
-                return next;
-              })}>
+              <TouchableOpacity
+                style={[styles.locationBtn, !floodPoints.length && styles.disabled]}
+                onPress={undoFloodPoint}
+                disabled={!floodPoints.length}
+              >
                 <Ionicons name="arrow-undo" size={18} color={colors.blue} />
                 <Text style={styles.locationBtnText}>Undo point</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.clearPointsBtn} onPress={() => {
-              setFloodPoints([]);
-              setStartLocation(null);
-              setEndLocation(null);
-            }}>
+            <TouchableOpacity style={styles.clearPointsBtn} onPress={clearFloodPoints}>
               <Text style={styles.clearPointsText}>Clear flood street points</Text>
             </TouchableOpacity>
           </>
@@ -497,10 +508,20 @@ const ReportScreen = () => {
                 <Text style={[styles.fullMapChipText, pickMode === "location" && styles.fullMapChipTextActive]}>Location</Text>
               </TouchableOpacity>
               {hazardType === "Flood" ? (
-                <TouchableOpacity style={[styles.fullMapChip, pickMode === "floodPoint" && styles.fullMapChipActive]} onPress={() => setPickMode("floodPoint")}>
-                  <Ionicons name="add-circle" size={16} color={pickMode === "floodPoint" ? "#fff" : colors.blue} />
-                  <Text style={[styles.fullMapChipText, pickMode === "floodPoint" && styles.fullMapChipTextActive]}>Flood point</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity style={[styles.fullMapChip, pickMode === "floodPoint" && styles.fullMapChipActive]} onPress={() => setPickMode("floodPoint")}>
+                    <Ionicons name="add-circle" size={16} color={pickMode === "floodPoint" ? "#fff" : colors.blue} />
+                    <Text style={[styles.fullMapChipText, pickMode === "floodPoint" && styles.fullMapChipTextActive]}>Flood point</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.fullMapChip, !floodPoints.length && styles.disabled]}
+                    onPress={undoFloodPoint}
+                    disabled={!floodPoints.length}
+                  >
+                    <Ionicons name="arrow-undo" size={16} color={colors.blue} />
+                    <Text style={styles.fullMapChipText}>Undo point</Text>
+                  </TouchableOpacity>
+                </>
               ) : isLineHazard ? (
                 <>
                   <TouchableOpacity style={[styles.fullMapChip, pickMode === "start" && styles.fullMapChipActive]} onPress={() => setPickMode("start")}>
