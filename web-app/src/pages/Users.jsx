@@ -30,6 +30,9 @@ const Users = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [declineTarget, setDeclineTarget] = useState(null);
+  const [declineReason, setDeclineReason] = useState("");
+  const [declineLoading, setDeclineLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -112,6 +115,30 @@ const Users = () => {
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || "Could not approve official");
+    }
+  };
+
+  const openDecline = (target) => {
+    setDeclineTarget(target);
+    setDeclineReason("");
+  };
+
+  const handleDecline = async (e) => {
+    e.preventDefault();
+    if (!declineTarget) return;
+    setDeclineLoading(true);
+    try {
+      await api.patch(`/auth/officials/${declineTarget._id}/decline`, {
+        reason: declineReason,
+      });
+      toast.success("Official request declined");
+      setDeclineTarget(null);
+      setDeclineReason("");
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not decline official request");
+    } finally {
+      setDeclineLoading(false);
     }
   };
 
@@ -298,6 +325,12 @@ const Users = () => {
                             className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-semibold"
                           >
                             Approve official
+                          </button>
+                          <button
+                            onClick={() => openDecline(o)}
+                            className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-semibold"
+                          >
+                            Decline
                           </button>
                         </div>
                       </div>
@@ -656,6 +689,12 @@ const Users = () => {
                     {selectedUser.status?.toUpperCase()}
                   </span>
                 </div>
+                {selectedUser.officialAccessRejectedReason ? (
+                  <div className="rounded-2xl bg-red-50 border border-red-100 p-4 text-sm text-red-800">
+                    <p className="font-bold">Official access declined</p>
+                    <p className="mt-1">{selectedUser.officialAccessRejectedReason}</p>
+                  </div>
+                ) : null}
                 <div className="glass-input flex items-center justify-between gap-4">
                   <span className="flex items-center gap-2 text-navy-500">
                     <PhoneIcon className="w-4 h-4" />
@@ -737,6 +776,57 @@ const Users = () => {
                   <span>Open User Location</span>
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {declineTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setDeclineTarget(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-card max-w-lg w-full p-7"
+            >
+              <h2 className="text-2xl font-bold text-navy-900">
+                Decline Official Request
+              </h2>
+              <p className="mt-1 text-sm text-navy-600">
+                This reason will be emailed and shown to {declineTarget.name} in the mobile app.
+              </p>
+              <form onSubmit={handleDecline} className="mt-5 space-y-4">
+                <textarea
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  className="w-full glass-input min-h-[120px]"
+                  placeholder="Explain why the official request was declined..."
+                  maxLength={500}
+                  required
+                />
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeclineTarget(null)}
+                    className="px-4 py-2 rounded-xl bg-white text-navy-700 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={declineLoading}
+                    className="px-4 py-2 rounded-xl bg-red-500 text-white font-semibold disabled:opacity-70"
+                  >
+                    {declineLoading ? "Declining..." : "Decline request"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

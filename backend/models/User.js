@@ -51,6 +51,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  officialAccessRejectedReason: {
+    type: String,
+    trim: true,
+    maxlength: [500, "Rejection reason cannot be more than 500 characters"],
+    default: "",
+  },
+  officialAccessRejectedAt: {
+    type: Date,
+    default: null,
+  },
   profilePictureUrl: {
     type: String,
     default: null,

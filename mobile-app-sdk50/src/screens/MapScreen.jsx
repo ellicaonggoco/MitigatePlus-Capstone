@@ -228,14 +228,21 @@ const buildMapHtml = ({ hazards, reports, evacuation }) => {
 
     data.reports.forEach((r) => {
       const item = { title: r.type + ' Report', type: r.type, severity: r.severity, description: r.description || '', barangay: r.barangay || '', tips: data.tips[r.type + '::' + r.severity] || data.tips[r.type + '::moderate'] || [] };
-      if (r.startLocation && r.endLocation && Number.isFinite(r.startLocation.lat) && Number.isFinite(r.endLocation.lat)) {
+      const isLineReport = r.indicatorType === 'line' || (!r.indicatorType && r.startLocation && r.endLocation);
+      if (isLineReport && r.startLocation && r.endLocation && Number.isFinite(r.startLocation.lat) && Number.isFinite(r.endLocation.lat)) {
         const route = (r.routeCoordinates || []).filter(c => Number.isFinite(c.lat) && Number.isFinite(c.lng)).map(c => [c.lat, c.lng]);
         const line = route.length >= 2 ? route : [[r.startLocation.lat, r.startLocation.lng], [r.endLocation.lat, r.endLocation.lng]];
         L.polyline(line, { color: typeColors[r.type] || colors[r.severity], weight: r.severity === 'high' ? 6 : 4, opacity: .9 }).addTo(layers.Reports).on('click', () => post(item)).bindPopup(popup(item));
         L.marker(line[0], { icon: markerIcon(item) }).addTo(layers.Reports).on('click', () => post(item)).bindPopup(popup(item));
       } else if (r.location && Number.isFinite(r.location.lat) && Number.isFinite(r.location.lng)) {
         const pos = [r.location.lat, r.location.lng];
-        if (r.type === 'Flood') L.circle(pos, { radius: r.severity === 'high' ? 350 : r.severity === 'moderate' ? 180 : 80, color: '#1565c0', fillColor: '#1976d2', fillOpacity: .28 }).addTo(layers.Reports).on('click', () => post(item)).bindPopup(popup(item));
+        L.circle(pos, {
+          radius: r.radius || (r.severity === 'high' ? 350 : r.severity === 'moderate' ? 180 : 80),
+          color: typeColors[r.type] || colors[r.severity],
+          fillColor: typeColors[r.type] || colors[r.severity],
+          fillOpacity: .24,
+          weight: 3
+        }).addTo(layers.Reports).on('click', () => post(item)).bindPopup(popup(item));
         L.marker(pos, { icon: markerIcon(item) }).addTo(layers.Reports).on('click', () => post(item)).bindPopup(popup(item));
       }
     });
@@ -581,7 +588,7 @@ const findNearbyHazard = (latitude, longitude, hazards, reports) => {
       severity: report.severity,
       lat: report.location.lat,
       lng: report.location.lng,
-      radius: report.severity === "high" ? 800 : 500,
+      radius: report.radius || (report.severity === "high" ? 800 : 500),
     }));
 
   const hazardPoints = hazards.flatMap((hazard) =>

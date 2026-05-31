@@ -53,6 +53,17 @@ const reportSchema = new mongoose.Schema({
       lng: Number,
     },
   ],
+  indicatorType: {
+    type: String,
+    enum: ["circle", "line"],
+    default: "circle",
+  },
+  radius: {
+    type: Number,
+    default: 150,
+    min: 25,
+    max: 3000,
+  },
   imageUrl: {
     type: String,
     default: null,

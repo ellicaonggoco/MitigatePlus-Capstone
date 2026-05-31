@@ -23,7 +23,7 @@ const ACTION_GAP = 11;
 const HORIZONTAL_PADDING = 36;
 
 const HomeScreen = ({ navigation }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { width } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,16 +34,18 @@ const HomeScreen = ({ navigation }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [reportsRes, hazardsRes, evacuationRes, weatherRes] = await Promise.all([
+      const [reportsRes, hazardsRes, evacuationRes, weatherRes, meRes] = await Promise.all([
         api.get("/reports/validated"),
         api.get("/hazards"),
         api.get("/evacuation"),
         api.get("/weather").catch(() => ({ data: { data: null } })),
+        api.get("/auth/users/me").catch(() => ({ data: { data: null } })),
       ]);
       setReports(reportsRes.data.data || []);
       setHazards(hazardsRes.data.data || []);
       setEvacuation(evacuationRes.data.data || []);
       setWeather(weatherRes.data.data || null);
+      if (meRes.data.data) updateUser(meRes.data.data);
     } catch (err) {
       console.log("Home fetch error", err.message);
     } finally {
@@ -101,6 +103,18 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.pendingOfficialTitle}>Official access pending</Text>
               <Text style={styles.pendingOfficialText}>
                 You can use resident features now. The Official page will appear after admin approval.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {user?.officialAccessRejectedReason ? (
+          <View style={styles.declinedOfficialCard}>
+            <Ionicons name="alert-circle-outline" size={22} color={colors.red} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.declinedOfficialTitle}>Official access declined</Text>
+              <Text style={styles.declinedOfficialText}>
+                {user.officialAccessRejectedReason}
               </Text>
             </View>
           </View>
@@ -241,6 +255,9 @@ const styles = StyleSheet.create({
   pendingOfficialCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#eef7ff", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: colors.border, marginTop: 10 },
   pendingOfficialTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 14 },
   pendingOfficialText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 2 },
+  declinedOfficialCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#fff5f5", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: "#fecaca", marginTop: 10 },
+  declinedOfficialTitle: { color: colors.red, fontFamily: fonts.bold, fontSize: 14 },
+  declinedOfficialText: { color: colors.text, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18, marginTop: 2 },
   welcomeCard: { borderRadius: 28, padding: 20, marginTop: 12, overflow: "hidden", ...shadow.card },
   communityBadge: {
     alignSelf: "flex-start",

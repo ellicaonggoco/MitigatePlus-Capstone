@@ -202,6 +202,11 @@ const Reports = () => {
     window.open(`https://www.google.com/maps?q=${location.lat},${location.lng}`, "_blank", "noopener,noreferrer");
   };
 
+  const formatReportShape = (report) => {
+    if (report.indicatorType === "line" || (!report.indicatorType && report.startLocation && report.endLocation)) return "Line indicator";
+    return `Circle indicator${report.radius ? ` - ${report.radius}m radius` : ""}`;
+  };
+
   if (loading)
     return (
       <div className="flex">
@@ -429,6 +434,24 @@ const Reports = () => {
 
                         <p className="text-navy-600 mt-2">{r.description}</p>
 
+                        {r.imageUrl ? (
+                          <div className="mt-4 overflow-hidden rounded-2xl border border-white/70 bg-white/70 shadow-sm max-w-xl">
+                            <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" title="Open evidence image">
+                              <img
+                                src={r.imageUrl}
+                                alt={`${r.type} evidence`}
+                                className="h-64 w-full object-cover"
+                              />
+                            </a>
+                            <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs font-semibold text-navy-600">
+                              <span>Image evidence</span>
+                              <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" className="text-primary-700">
+                                Open full image
+                              </a>
+                            </div>
+                          </div>
+                        ) : null}
+
                         {r.isEmergency && (
                           <div className="mt-3 rounded-2xl border border-red-100 bg-red-50 p-3">
                             <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -488,6 +511,7 @@ const Reports = () => {
                               " (Official)"}
                           </span>
                           <span>{new Date(r.createdAt).toLocaleDateString()}</span>
+                          <span>{formatReportShape(r)}</span>
                         </div>
                       </div>
                     </div>

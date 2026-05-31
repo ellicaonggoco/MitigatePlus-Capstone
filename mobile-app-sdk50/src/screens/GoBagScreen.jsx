@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "../components/Header";
 import ScreenShell from "../components/ScreenShell";
@@ -23,6 +24,7 @@ const fallbackItems = [
 ];
 
 const filters = ["All", "Low", "Moderate", "High"];
+const GO_BAG_STORAGE_KEY = "mitigateplus_go_bag_state";
 
 const GoBagScreen = () => {
   const [items, setItems] = useState([]);
@@ -30,10 +32,36 @@ const GoBagScreen = () => {
   const [checked, setChecked] = useState({});
   const [filter, setFilter] = useState("All");
   const [household, setHousehold] = useState(4);
+  const [storageReady, setStorageReady] = useState(false);
 
   useEffect(() => {
-    fetchItems();
+    const loadSavedState = async () => {
+      try {
+        const saved = await SecureStore.getItemAsync(GO_BAG_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.checked && typeof parsed.checked === "object") setChecked(parsed.checked);
+          if (filters.includes(parsed.filter)) setFilter(parsed.filter);
+          if (Number.isFinite(parsed.household)) setHousehold(Math.min(Math.max(parsed.household, 1), 12));
+        }
+      } catch {
+        // Saved checklist state is optional.
+      } finally {
+        setStorageReady(true);
+        fetchItems();
+      }
+    };
+
+    loadSavedState();
   }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    SecureStore.setItemAsync(
+      GO_BAG_STORAGE_KEY,
+      JSON.stringify({ checked, filter, household }),
+    ).catch(() => {});
+  }, [checked, filter, household, storageReady]);
 
   const fetchItems = async () => {
     try {

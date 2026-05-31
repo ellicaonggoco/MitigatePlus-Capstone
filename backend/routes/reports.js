@@ -145,11 +145,18 @@ router.post("/", protect, upload.single("image"), async (req, res) => {
       startLocation,
       endLocation,
       routeWaypoints,
+      indicatorType,
+      radius,
       isEmergency,
       emergencyAcknowledged,
     } = req.body;
 
     const emergency = isEmergency === true || isEmergency === "true";
+    const reportIndicatorType = indicatorType === "line" ? "line" : "circle";
+    const parsedRadius = Number(radius);
+    const reportRadius = Number.isFinite(parsedRadius)
+      ? Math.min(Math.max(parsedRadius, 25), 3000)
+      : 150;
     const acknowledged =
       emergencyAcknowledged === true || emergencyAcknowledged === "true";
     const parsedLocation = JSON.parse(location);
@@ -160,13 +167,13 @@ router.post("/", protect, upload.single("image"), async (req, res) => {
       ? parsedRouteWaypoints.filter((point) => Number.isFinite(point?.lat) && Number.isFinite(point?.lng))
       : [];
     const routeBase =
-      type === "Flood" && validRouteWaypoints.length >= 2
+      reportIndicatorType === "line" && type === "Flood" && validRouteWaypoints.length >= 2
         ? validRouteWaypoints
         : parsedStartLocation && parsedEndLocation
           ? [parsedStartLocation, parsedEndLocation]
           : [];
     const routeCoordinates =
-      type === "Flood" && routeBase.length >= 2
+      reportIndicatorType === "line" && type === "Flood" && routeBase.length >= 2
         ? await getStreetRouteCoordinates(routeBase)
         : [];
 
@@ -204,6 +211,8 @@ router.post("/", protect, upload.single("image"), async (req, res) => {
       startLocation: parsedStartLocation,
       endLocation: parsedEndLocation,
       routeCoordinates,
+      indicatorType: reportIndicatorType,
+      radius: reportRadius,
       imageUrl: req.file ? req.file.path : null,
       barangay: reportBarangay,
       isEmergency: emergency,
@@ -336,7 +345,7 @@ router.get("/validated", async (req, res) => {
   try {
     const reports = await Report.find({ status: "validated" })
       .select(
-        "type emoji severity description location startLocation endLocation routeCoordinates imageUrl barangay isEmergency createdAt",
+        "type emoji severity description location startLocation endLocation routeCoordinates indicatorType radius imageUrl barangay isEmergency createdAt",
       )
       .populate("userId", "name")
       .sort({ createdAt: -1 });

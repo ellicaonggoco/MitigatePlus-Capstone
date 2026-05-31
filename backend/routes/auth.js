@@ -22,6 +22,13 @@ const generateOTP = () => {
 };
 
 const normalizeEmail = (email = "") => email.trim().toLowerCase();
+const escapeHtml = (value = "") =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const createAndSendRegisterOTP = async (user, officialRequested = false) => {
   await OTP.deleteMany({ email: user.email, type: "register" });
@@ -132,6 +139,8 @@ router.post("/register", upload.single("officialId"), async (req, res) => {
       role: "resident",
       isBarangayOfficial: officialRequested,
       officialIdUrl: req.file ? req.file.path : null,
+      officialAccessRejectedReason: "",
+      officialAccessRejectedAt: null,
       status: "pending_otp",
     };
 
@@ -261,6 +270,8 @@ router.post("/verify-otp", async (req, res) => {
         phone: user.phone,
         address: user.address,
         officialIdUrl: user.officialIdUrl,
+        officialAccessRejectedReason: user.officialAccessRejectedReason,
+        officialAccessRejectedAt: user.officialAccessRejectedAt,
         profilePictureUrl: user.profilePictureUrl,
         status: user.status,
         isBarangayOfficial: user.isBarangayOfficial,
@@ -396,6 +407,8 @@ router.post("/login", async (req, res) => {
         phone: user.phone,
         address: user.address,
         officialIdUrl: user.officialIdUrl,
+        officialAccessRejectedReason: user.officialAccessRejectedReason,
+        officialAccessRejectedAt: user.officialAccessRejectedAt,
         profilePictureUrl: user.profilePictureUrl,
         status: user.status,
         isBarangayOfficial: user.isBarangayOfficial,
@@ -976,6 +989,8 @@ router.patch(
       targetUser.isEmailVerified = true;
       targetUser.role = "barangay_official";
       targetUser.barangayAssigned = targetUser.barangayAssigned || targetUser.barangay;
+      targetUser.officialAccessRejectedReason = "";
+      targetUser.officialAccessRejectedAt = null;
       await targetUser.save();
 
       const user = await User.findById(targetUser._id).select("-password");
@@ -1014,6 +1029,91 @@ router.patch(
       res.status(500).json({
         success: false,
         message: "Server error approving official",
+      });
+    }
+  },
+);
+
+// @desc    Decline official access request
+// @route   PATCH /api/auth/officials/:id/decline
+router.patch(
+  "/officials/:id/decline",
+  protect,
+  authorize("admin", "superadmin"),
+  async (req, res) => {
+    try {
+      const reason = String(req.body.reason || "").trim();
+
+      if (!reason) {
+        return res.status(400).json({
+          success: false,
+          message: "Please provide a rejection reason",
+        });
+      }
+
+      const targetUser = await User.findById(req.params.id);
+
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Official request not found",
+        });
+      }
+
+      if (!targetUser.isBarangayOfficial || !targetUser.officialIdUrl) {
+        return res.status(400).json({
+          success: false,
+          message: "This user has no barangay official request on file",
+        });
+      }
+
+      targetUser.role = "resident";
+      targetUser.status = "active";
+      targetUser.isEmailVerified = true;
+      targetUser.isBarangayOfficial = false;
+      targetUser.officialAccessRejectedReason = reason;
+      targetUser.officialAccessRejectedAt = new Date();
+      await targetUser.save();
+
+      const user = await User.findById(targetUser._id).select("-password");
+
+      await ActivityLog.create({
+        userId: req.user._id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        action: "OFFICIAL_DECLINED",
+        details: `Declined barangay official request ${user.email}: ${reason}`,
+        ipAddress: req.ip,
+      });
+
+      try {
+        const safeReason = escapeHtml(reason);
+        await sendEmail({
+          email: user.email,
+          subject: "MitigatePlus - Official Access Request Declined",
+          html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0d2b6b;">MitigatePlus - Official Access Request Declined</h2>
+          <p>Hello ${user.name},</p>
+          <p>Your request for barangay official access was declined.</p>
+          <p><strong>Reason:</strong> ${safeReason}</p>
+          <p>You can continue using MitigatePlus as a resident.</p>
+        </div>
+      `,
+        });
+      } catch (emailError) {
+        console.error("Official decline email error:", emailError.message);
+      }
+
+      res.json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      console.error("Decline official error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error declining official request",
       });
     }
   },

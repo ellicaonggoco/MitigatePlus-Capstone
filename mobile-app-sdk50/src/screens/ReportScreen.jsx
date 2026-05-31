@@ -37,9 +37,11 @@ const isInsideManila = ({ latitude, longitude }) =>
 
 const safeJson = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
 
-const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, floodPoints, pickMode, mapView }) => {
+const buildPickerHtml = ({ hazardType, indicatorType, radius, location, startLocation, endLocation, floodPoints, pickMode, mapView }) => {
   const payload = {
     hazardType,
+    indicatorType,
+    radius,
     pickMode,
     center: { lat: MANILA.latitude, lng: MANILA.longitude },
     mapView: mapView ? { lat: mapView.latitude, lng: mapView.longitude, zoom: mapView.zoom } : null,
@@ -109,7 +111,17 @@ const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, flo
     });
 
     L.marker([data.location.lat, data.location.lng], { icon: locationIcon }).addTo(map).bindPopup('Hazard location');
-    if (data.hazardType === 'Flood' && data.floodPoints.length) {
+    if (data.indicatorType === 'circle') {
+      L.circle([data.location.lat, data.location.lng], {
+        radius: data.radius || 150,
+        color: '#e65100',
+        fillColor: '#f97316',
+        fillOpacity: .24,
+        weight: 3
+      }).addTo(map).bindPopup('Report area');
+    }
+
+    if (data.indicatorType === 'line' && data.hazardType === 'Flood' && data.floodPoints.length) {
       data.floodPoints.forEach((point) => L.marker([point.lat, point.lng], { icon: routePointIcon }).addTo(map).bindPopup('Flood street point'));
       if (data.floodPoints.length >= 2) {
         L.polyline(data.floodPoints.map((point) => [point.lat, point.lng]), {
@@ -118,11 +130,11 @@ const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, flo
           opacity: .92
         }).addTo(map);
       }
-    } else {
+    } else if (data.indicatorType === 'line') {
       if (data.startLocation) L.marker([data.startLocation.lat, data.startLocation.lng], { icon: startIcon }).addTo(map).bindPopup('Start point');
       if (data.endLocation) L.marker([data.endLocation.lat, data.endLocation.lng], { icon: endIcon }).addTo(map).bindPopup('End point');
     }
-    if (data.hazardType !== 'Flood' && data.startLocation && data.endLocation) {
+    if (data.indicatorType === 'line' && data.hazardType !== 'Flood' && data.startLocation && data.endLocation) {
       L.polyline([[data.startLocation.lat, data.startLocation.lng], [data.endLocation.lat, data.endLocation.lng]], {
         color: '#d32f2f',
         weight: 5,
@@ -147,6 +159,8 @@ const buildPickerHtml = ({ hazardType, location, startLocation, endLocation, flo
 const ReportScreen = () => {
   const webRef = useRef(null);
   const [hazardType, setHazardType] = useState("Flood");
+  const [indicatorType, setIndicatorType] = useState("line");
+  const [radius, setRadius] = useState(150);
   const [severity, setSeverity] = useState("moderate");
   const [location, setLocation] = useState(MANILA);
   const [startLocation, setStartLocation] = useState(null);
@@ -160,18 +174,21 @@ const ReportScreen = () => {
   const [isEmergency, setIsEmergency] = useState(false);
   const [pendingEmergency, setPendingEmergency] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
-  const isLineHazard = hazardType === "Flood" || hazardType === "Fault Line";
+  const isLineReport = indicatorType === "line";
+  const isCircleReport = indicatorType === "circle";
+  const useFloodPoints = isLineReport && hazardType === "Flood";
   const mapHtml = useMemo(
-    () => buildPickerHtml({ hazardType, location, startLocation, endLocation, floodPoints, pickMode, mapView }),
-    [endLocation, floodPoints, hazardType, location, mapView, pickMode, startLocation],
+    () => buildPickerHtml({ hazardType, indicatorType, radius, location, startLocation, endLocation, floodPoints, pickMode, mapView }),
+    [endLocation, floodPoints, hazardType, indicatorType, location, mapView, pickMode, radius, startLocation],
   );
 
   const hasRequiredReportDetails = useMemo(() => {
     if (!description.trim()) return false;
+    if (isCircleReport) return true;
     if (hazardType === "Flood" && floodPoints.length < 2) return false;
-    if (hazardType === "Fault Line" && (!startLocation || !endLocation)) return false;
+    if (!startLocation || !endLocation) return false;
     return true;
-  }, [description, endLocation, floodPoints.length, hazardType, startLocation]);
+  }, [description, endLocation, floodPoints.length, hazardType, isCircleReport, startLocation]);
 
   const canSubmit = isEmergency || hasRequiredReportDetails;
 
@@ -249,13 +266,17 @@ const ReportScreen = () => {
   const submitReport = async (emergencyAcknowledged = false, forceEmergency = false) => {
     const emergencyReport = forceEmergency || isEmergency;
     if (!emergencyReport && !hasRequiredReportDetails) {
-      Alert.alert("Missing details", hazardType === "Flood" ? "Add a description and at least 2 flood street points." : isLineHazard ? "Add a description and select start/end points." : "Add a description and location.");
+      Alert.alert("Missing details", isCircleReport ? "Add a description and location." : hazardType === "Flood" ? "Add a description and at least 2 flood street points." : "Add a description and select start/end points.");
       return;
     }
     setSubmitting(true);
     try {
       const formData = new FormData();
-      const reportLocation = hazardType === "Flood" && floodPoints[0] ? floodPoints[0] : location;
+      const reportLocation = useFloodPoints && floodPoints[0]
+        ? floodPoints[0]
+        : isLineReport && startLocation
+          ? startLocation
+          : location;
       const emergencyDescription = `Emergency ping submitted by resident for active ${hazardType} danger.`;
       formData.append("type", hazardType);
       formData.append("emoji", hazardEmojis[hazardType] || "\u{26A0}\u{FE0F}");
@@ -263,14 +284,16 @@ const ReportScreen = () => {
       formData.append("description", description.trim() || emergencyDescription);
       formData.append("location", JSON.stringify({ lat: reportLocation.latitude, lng: reportLocation.longitude }));
       formData.append("barangay", "Manila");
+      formData.append("indicatorType", indicatorType);
+      formData.append("radius", String(radius));
       formData.append("isEmergency", emergencyReport ? "true" : "false");
       formData.append("emergencyAcknowledged", emergencyAcknowledged ? "true" : "false");
-      if (hazardType === "Flood" && floodPoints.length >= 2) {
+      if (isLineReport && hazardType === "Flood" && floodPoints.length >= 2) {
         const routeWaypoints = floodPoints.map((point) => ({ lat: point.latitude, lng: point.longitude }));
         formData.append("startLocation", JSON.stringify(routeWaypoints[0]));
         formData.append("endLocation", JSON.stringify(routeWaypoints[routeWaypoints.length - 1]));
         formData.append("routeWaypoints", JSON.stringify(routeWaypoints));
-      } else if (isLineHazard && startLocation && endLocation) {
+      } else if (isLineReport && startLocation && endLocation) {
         formData.append("startLocation", JSON.stringify({ lat: startLocation.latitude, lng: startLocation.longitude }));
         formData.append("endLocation", JSON.stringify({ lat: endLocation.latitude, lng: endLocation.longitude }));
       }
@@ -293,6 +316,7 @@ const ReportScreen = () => {
       setStartLocation(null);
       setEndLocation(null);
       setFloodPoints([]);
+      setIndicatorType(hazardType === "Flood" || hazardType === "Fault Line" ? "line" : "circle");
       setPickMode("location");
     } catch (err) {
       Alert.alert("Submission failed", err.response?.data?.message || "Please try again.");
@@ -397,6 +421,8 @@ const ReportScreen = () => {
               style={[styles.typeCard, hazardType === type && styles.selectedCard]}
               onPress={() => {
                 setHazardType(type);
+                const nextIndicator = type === "Flood" || type === "Fault Line" ? "line" : "circle";
+                setIndicatorType(nextIndicator);
                 setStartLocation(null);
                 setEndLocation(null);
                 setFloodPoints([]);
@@ -407,6 +433,29 @@ const ReportScreen = () => {
                 <HazardLogoBadge type={type} size={42} />
               </View>
               <Text style={styles.typeText}>{type}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>Report indicator</Text>
+        <View style={styles.indicatorRow}>
+          {[
+            { key: "circle", label: "Circle", icon: "radio-button-on" },
+            { key: "line", label: "Line", icon: "git-commit-outline" },
+          ].map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[styles.indicatorBtn, indicatorType === item.key && styles.indicatorBtnActive]}
+              onPress={() => {
+                setIndicatorType(item.key);
+                setStartLocation(null);
+                setEndLocation(null);
+                setFloodPoints([]);
+                setPickMode("location");
+              }}
+            >
+              <Ionicons name={item.icon} size={18} color={indicatorType === item.key ? "#fff" : colors.blue} />
+              <Text style={[styles.indicatorText, indicatorType === item.key && styles.indicatorTextActive]}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -442,7 +491,23 @@ const ReportScreen = () => {
             <Text style={styles.locationBtnText}>Add location</Text>
           </TouchableOpacity>
         </View>
-        {hazardType === "Flood" ? (
+        {isCircleReport ? (
+          <View style={styles.radiusCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.radiusTitle}>Circle size</Text>
+              <Text style={styles.radiusText}>Radius: {radius} meters</Text>
+            </View>
+            <View style={styles.radiusStepper}>
+              <TouchableOpacity style={styles.radiusBtn} onPress={() => setRadius((value) => Math.max(25, value - 25))}>
+                <Ionicons name="remove" size={18} color={colors.blue} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.radiusBtn} onPress={() => setRadius((value) => Math.min(3000, value + 25))}>
+                <Ionicons name="add" size={18} color={colors.blue} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+        {useFloodPoints ? (
           <>
             <View style={styles.locationActions}>
               <TouchableOpacity style={[styles.locationBtn, pickMode === "floodPoint" && styles.locationBtnActive]} onPress={() => setPickMode("floodPoint")}>
@@ -462,7 +527,7 @@ const ReportScreen = () => {
               <Text style={styles.clearPointsText}>Clear flood street points</Text>
             </TouchableOpacity>
           </>
-        ) : isLineHazard ? (
+        ) : isLineReport ? (
           <View style={styles.locationActions}>
             <TouchableOpacity style={[styles.locationBtn, pickMode === "start" && styles.locationBtnActive]} onPress={() => setPickMode("start")}>
               <Text style={styles.locationBtnText}>Set start</Text>
@@ -491,11 +556,11 @@ const ReportScreen = () => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.fullMapTitle}>Pick {hazardType} location</Text>
                 <Text style={styles.fullMapSubtitle}>
-                  {hazardType === "Flood"
+                  {useFloodPoints
                     ? "Add at least 2 street points in order."
-                    : isLineHazard
+                    : isLineReport
                       ? "Set start and end points on the map."
-                      : "Tap the exact hazard location."}
+                      : "Tap the exact hazard location and adjust the circle size."}
                 </Text>
               </View>
               <TouchableOpacity style={styles.fullMapClose} onPress={() => setMapExpanded(false)}>
@@ -507,7 +572,19 @@ const ReportScreen = () => {
                 <Ionicons name="pin" size={16} color={pickMode === "location" ? "#fff" : colors.blue} />
                 <Text style={[styles.fullMapChipText, pickMode === "location" && styles.fullMapChipTextActive]}>Location</Text>
               </TouchableOpacity>
-              {hazardType === "Flood" ? (
+              {isCircleReport ? (
+                <View style={styles.fullRadiusControls}>
+                  <TouchableOpacity style={styles.fullMapChip} onPress={() => setRadius((value) => Math.max(25, value - 25))}>
+                    <Ionicons name="remove" size={16} color={colors.blue} />
+                    <Text style={styles.fullMapChipText}>Smaller</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.fullRadiusText}>{radius} m</Text>
+                  <TouchableOpacity style={styles.fullMapChip} onPress={() => setRadius((value) => Math.min(3000, value + 25))}>
+                    <Ionicons name="add" size={16} color={colors.blue} />
+                    <Text style={styles.fullMapChipText}>Larger</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : useFloodPoints ? (
                 <>
                   <TouchableOpacity style={[styles.fullMapChip, pickMode === "floodPoint" && styles.fullMapChipActive]} onPress={() => setPickMode("floodPoint")}>
                     <Ionicons name="add-circle" size={16} color={pickMode === "floodPoint" ? "#fff" : colors.blue} />
@@ -522,7 +599,7 @@ const ReportScreen = () => {
                     <Text style={styles.fullMapChipText}>Undo point</Text>
                   </TouchableOpacity>
                 </>
-              ) : isLineHazard ? (
+              ) : isLineReport ? (
                 <>
                   <TouchableOpacity style={[styles.fullMapChip, pickMode === "start" && styles.fullMapChipActive]} onPress={() => setPickMode("start")}>
                     <Text style={[styles.fullMapChipText, pickMode === "start" && styles.fullMapChipTextActive]}>Start</Text>
@@ -545,7 +622,7 @@ const ReportScreen = () => {
             <View style={styles.fullMapFooter}>
               <Text style={styles.fullMapFooterText}>
                 Selected: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-                {hazardType === "Flood" ? ` - points ${floodPoints.length}` : ""}
+                {useFloodPoints ? ` - points ${floodPoints.length}` : isCircleReport ? ` - radius ${radius}m` : ""}
               </Text>
               <TouchableOpacity style={styles.fullMapDone} onPress={() => setMapExpanded(false)}>
                 <Text style={styles.fullMapDoneText}>Done</Text>
@@ -557,18 +634,21 @@ const ReportScreen = () => {
           <Text style={styles.locationSummaryText}>
             Selected: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
           </Text>
-          {hazardType === "Flood" ? (
+          {useFloodPoints ? (
             <Text style={styles.locationSummaryText}>Flood street points: {floodPoints.length}</Text>
           ) : null}
-          {isLineHazard && startLocation ? (
+          {isLineReport && startLocation ? (
             <Text style={styles.locationSummaryText}>Start: {startLocation.latitude.toFixed(5)}, {startLocation.longitude.toFixed(5)}</Text>
           ) : null}
-          {isLineHazard && endLocation ? (
+          {isLineReport && endLocation ? (
             <Text style={styles.locationSummaryText}>End: {endLocation.latitude.toFixed(5)}, {endLocation.longitude.toFixed(5)}</Text>
+          ) : null}
+          {isCircleReport ? (
+            <Text style={styles.locationSummaryText}>Circle radius: {radius} meters</Text>
           ) : null}
         </View>
         <Text style={styles.mapHint}>
-          {hazardType === "Flood" ? "Tap Add flood point, then tap each flooded street in order. Add at least 2 points." : isLineHazard ? "Tap Set start and Set end, then tap the map for each point." : "Tap the map if the hazard is away from your current location."}
+          {useFloodPoints ? "Tap Add flood point, then tap each flooded street in order. Add at least 2 points." : isLineReport ? "Tap Set start and Set end, then tap the map for each point." : "Tap the map to place the circle, then use + or - to resize the visible area."}
         </Text>
 
         <Text style={styles.sectionTitle}>Description</Text>
@@ -628,12 +708,22 @@ const styles = StyleSheet.create({
   moderateSeverity: { borderColor: colors.orange, backgroundColor: "#fff7ed" },
   highSeverity: { borderColor: colors.red, backgroundColor: "#fef2f2" },
   severityText: { color: colors.text, fontFamily: fonts.bold, fontSize: 12 },
+  indicatorRow: { flexDirection: "row", gap: 8 },
+  indicatorBtn: { flex: 1, minHeight: 44, borderRadius: 15, backgroundColor: "#fff", borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 },
+  indicatorBtnActive: { backgroundColor: colors.blue, borderColor: colors.blue },
+  indicatorText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 12 },
+  indicatorTextActive: { color: "#fff" },
   locationActions: { flexDirection: "row", gap: 8, marginBottom: 9 },
   locationBtn: { flex: 1, minHeight: 42, borderRadius: 15, backgroundColor: "#fff", borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   locationBtnActive: { backgroundColor: "#e1f4ff", borderColor: colors.blue },
   locationBtnText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 12 },
   clearPointsBtn: { minHeight: 40, borderRadius: 14, backgroundColor: "#eef7ff", borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", marginBottom: 9 },
   clearPointsText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 12 },
+  radiusCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 16, padding: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 9, gap: 10 },
+  radiusTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 13 },
+  radiusText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
+  radiusStepper: { flexDirection: "row", gap: 8 },
+  radiusBtn: { width: 38, height: 38, borderRadius: 14, backgroundColor: "#e8f3ff", alignItems: "center", justifyContent: "center" },
   map: { width: "100%", height: 250, borderRadius: 18, overflow: "hidden", backgroundColor: "#e8edf3", borderWidth: 1, borderColor: colors.border },
   webMap: { flex: 1, backgroundColor: "#e8edf3" },
   fullMapRoot: { flex: 1, backgroundColor: "#e8edf3" },
@@ -646,6 +736,8 @@ const styles = StyleSheet.create({
   fullMapChipActive: { backgroundColor: colors.blue, borderColor: colors.blue },
   fullMapChipText: { color: colors.blue, fontFamily: fonts.bold, fontSize: 12 },
   fullMapChipTextActive: { color: "#fff" },
+  fullRadiusControls: { width: "100%", flexDirection: "row", alignItems: "center", gap: 8 },
+  fullRadiusText: { color: colors.text, fontFamily: fonts.bold, fontSize: 13, minWidth: 64, textAlign: "center" },
   fullWebMap: { flex: 1, backgroundColor: "#e8edf3" },
   fullMapFooter: { padding: 12, backgroundColor: "#fff", borderTopWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 10 },
   fullMapFooterText: { flex: 1, color: colors.muted, fontFamily: fonts.medium, fontSize: 11 },
